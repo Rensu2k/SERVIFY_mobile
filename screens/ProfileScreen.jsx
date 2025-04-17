@@ -6,7 +6,7 @@ const UserProfile = () => {
   return (
     <View style={styles.container}>
       <Image
-        source={require("../../assets/images/Profile.jpg")}
+        source={require("../assets/images/Profile.jpg")}
         style={styles.avatar}
       />
       <Text style={styles.name}>Rensu Buenaflor</Text>
@@ -46,6 +46,7 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 100,
     marginBottom: 15,
+    marginTop: 30,
   },
   name: {
     fontSize: 18,
@@ -72,6 +73,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     width: "85%",
+    marginTop: 30,
     marginBottom: 30,
   },
   settingLeft: {
@@ -87,6 +89,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
     borderWidth: 1,
+    marginTop: 30,
     borderColor: "#000",
     paddingVertical: 10,
     paddingHorizontal: 20,

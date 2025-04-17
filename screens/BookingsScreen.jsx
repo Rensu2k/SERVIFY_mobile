@@ -1,12 +1,14 @@
-import React, { useState } from "react";
+import React from "react";
 import {
+  ScrollView,
   View,
   Text,
   Image,
-  ScrollView,
-  StyleSheet,
   TouchableOpacity,
+  StyleSheet,
 } from "react-native";
+import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
+import { SafeAreaView } from "react-native";
 
 const bookingsData = {
   pending: [
@@ -50,22 +52,19 @@ const bookingsData = {
   ],
 };
 
-const BookingsScreen = () => {
-  const [activeTab, setActiveTab] = useState("pending"); // State to track active tab
-
-  const renderBookings = (bookings) => {
-    return bookings.map((booking, index) => (
-      <View key={index} style={styles.card}>
+const renderBookings = (list) =>
+  list.map((booking, i) => (
+    <View key={i} style={styles.card}>
+      <TouchableOpacity>
         <View style={styles.cardHeader}>
           <Text style={styles.serviceLabel}>{booking.service}</Text>
           <TouchableOpacity>
             <Text style={styles.detailsLink}>View Details</Text>
           </TouchableOpacity>
         </View>
-
         <View style={styles.cardBody}>
           <Image
-            source={require("../../assets/images/airconTech.png")} // Replace with your image path
+            source={require("../assets/images/airconTech.png")}
             style={styles.image}
           />
           <View style={styles.textContent}>
@@ -74,60 +73,41 @@ const BookingsScreen = () => {
             <Text style={styles.date}>{booking.date}</Text>
           </View>
         </View>
-      </View>
-    ));
-  };
-
-  return (
-    <View style={styles.container}>
-      {/* Top Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity onPress={() => setActiveTab("pending")}>
-          <Text
-            style={[styles.tab, activeTab === "pending" && styles.activeTab]}
-          >
-            Pending/Active
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setActiveTab("cancelled")}>
-          <Text
-            style={[styles.tab, activeTab === "cancelled" && styles.activeTab]}
-          >
-            Cancelled
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content Based on Active Tab */}
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {activeTab === "pending"
-          ? renderBookings(bookingsData.pending)
-          : renderBookings(bookingsData.cancelled)}
-      </ScrollView>
+      </TouchableOpacity>
     </View>
+  ));
+
+const PendingTab = () => (
+  <ScrollView contentContainerStyle={styles.scrollContent}>
+    {renderBookings(bookingsData.pending)}
+  </ScrollView>
+);
+const CancelledTab = () => (
+  <ScrollView contentContainerStyle={styles.scrollContent}>
+    {renderBookings(bookingsData.cancelled)}
+  </ScrollView>
+);
+
+const TopTab = createMaterialTopTabNavigator();
+
+export default function BookingsScreen() {
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      <TopTab.Navigator
+        screenOptions={{
+          swipeEnabled: true,
+          tabBarIndicatorStyle: { backgroundColor: "#8C52FF", height: 3 },
+          tabBarLabelStyle: { fontWeight: "600" },
+        }}
+      >
+        <TopTab.Screen name="Pending/Active" component={PendingTab} />
+        <TopTab.Screen name="Cancelled" component={CancelledTab} />
+      </TopTab.Navigator>
+    </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  tabs: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
-  },
-  tab: {
-    paddingBottom: 10,
-    fontSize: 16,
-    color: "#999",
-  },
-  activeTab: {
-    color: "black",
-    borderBottomWidth: 2,
-    borderBottomColor: "#8C52FF",
-    fontWeight: "bold",
-  },
   scrollContent: {
     padding: 16,
     paddingBottom: 80,
@@ -139,7 +119,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     elevation: 2,
     borderBottomWidth: 1,
-    borderBottomColor: "Red",
+    borderBottomColor: "gray",
   },
   cardHeader: {
     flexDirection: "row",
@@ -182,5 +162,3 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
-
-export default BookingsScreen;
