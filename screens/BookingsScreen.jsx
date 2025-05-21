@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   ScrollView,
   View,
@@ -6,105 +6,172 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { SafeAreaView } from "react-native";
+import { useTheme } from "../Components/ThemeContext";
+import { useBookings } from "../Components/BookingsContext";
+import { useIsFocused } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 
-const bookingsData = {
-  pending: [
-    {
-      status: "Pending",
-      color: "#F5A623",
-      service: "Aircon Cleaning",
-      name: "Jester G. Pastor",
-      date: "Thursday, March 27",
-    },
-    {
-      status: "Accepted",
-      color: "green",
-      service: "Aircon Cleaning",
-      name: "Mark Angelo Reyes",
-      date: "Friday, March 28",
-    },
-    {
-      status: "Declined",
-      color: "red",
-      service: "Aircon Cleaning",
-      name: "Mark Angelo Reyes",
-      date: "Friday, March 28",
-    },
-    {
-      status: "Completed",
-      color: "green",
-      service: "Aircon Cleaning",
-      name: "Mark Angelo Reyes",
-      date: "Friday, March 28",
-    },
-  ],
-  cancelled: [
-    {
-      status: "Cancelled",
-      color: "red",
-      service: "Laundry Service",
-      name: "Althea Rose Bautista",
-      date: "Wednesday, March 26",
-    },
-  ],
-};
+const Bookings = ({ route, navigation }) => {
+  const { theme } = useTheme();
+  const { bookings, loading, refreshBookings } = useBookings();
+  const isFocused = useIsFocused();
 
-const renderBookings = (list) =>
-  list.map((booking, i) => (
-    <View key={i} style={styles.card}>
-      <TouchableOpacity>
-        <View style={styles.cardHeader}>
-          <Text style={styles.serviceLabel}>{booking.service}</Text>
-          <TouchableOpacity>
-            <Text style={styles.detailsLink}>View Details</Text>
-          </TouchableOpacity>
+  // Refresh bookings when screen is focused
+  useEffect(() => {
+    if (isFocused) {
+      refreshBookings();
+    }
+  }, [isFocused]);
+
+  const renderBookings = (list) => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.accent} />
+          <Text style={[styles.loadingText, { color: theme.text }]}>
+            Loading bookings...
+          </Text>
         </View>
-        <View style={styles.cardBody}>
-          <Image
-            source={require("../assets/images/airconTech.png")}
-            style={styles.image}
+      );
+    }
+
+    if (list.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons
+            name="calendar-outline"
+            size={50}
+            color={theme.isDarkMode ? "#666" : "#CCC"}
           />
-          <View style={styles.textContent}>
-            <Text style={styles.name}>{booking.name}</Text>
-            <Text style={{ color: booking.color }}>{booking.status}</Text>
-            <Text style={styles.date}>{booking.date}</Text>
-          </View>
+          <Text style={[styles.emptyText, { color: theme.text }]}>
+            No bookings found
+          </Text>
         </View>
-      </TouchableOpacity>
-    </View>
-  ));
+      );
+    }
 
-const PendingTab = () => (
-  <ScrollView contentContainerStyle={styles.scrollContent}>
-    {renderBookings(bookingsData.pending)}
-  </ScrollView>
-);
-const CancelledTab = () => (
-  <ScrollView contentContainerStyle={styles.scrollContent}>
-    {renderBookings(bookingsData.cancelled)}
-  </ScrollView>
-);
+    return list.map((booking, i) => (
+      <View
+        key={booking.id || i}
+        style={[
+          styles.card,
+          { backgroundColor: theme.isDarkMode ? "#2C2C2C" : "#EFE9FF" },
+        ]}
+      >
+        <TouchableOpacity>
+          <View style={styles.cardHeader}>
+            <Text
+              style={[
+                styles.serviceLabel,
+                {
+                  backgroundColor: theme.isDarkMode ? "#444" : "#D9D9D9",
+                  color: theme.text,
+                },
+              ]}
+            >
+              {booking.service}
+            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate("BookingDetails", { bookingId: booking.id })
+              }
+            >
+              <Text style={[styles.detailsLink, { color: theme.accent }]}>
+                View Details
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.cardBody}>
+            <Image
+              source={
+                booking.image || require("../assets/images/airconTech.png")
+              }
+              style={styles.image}
+            />
+            <View style={styles.textContent}>
+              <Text style={[styles.name, { color: theme.text }]}>
+                {booking.name}
+              </Text>
+              <Text style={{ color: booking.color }}>{booking.status}</Text>
+              <Text
+                style={[
+                  styles.date,
+                  { color: theme.isDarkMode ? "#AAA" : "#444" },
+                ]}
+              >
+                {booking.date}
+              </Text>
+              {booking.details && booking.details.service && (
+                <View style={styles.serviceDetails}>
+                  <Text style={[styles.serviceType, { color: theme.text }]}>
+                    {booking.details.service.name}
+                  </Text>
+                  <Text style={[styles.servicePrice, { color: theme.accent }]}>
+                    {booking.details.service.price}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </View>
+    ));
+  };
 
-const TopTab = createMaterialTopTabNavigator();
+  const PendingTab = () => (
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      style={{ backgroundColor: theme.background }}
+    >
+      {renderBookings(bookings.pending)}
+    </ScrollView>
+  );
 
-export default function BookingsScreen() {
+  const CancelledTab = () => (
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      style={{ backgroundColor: theme.background }}
+    >
+      {renderBookings(bookings.cancelled)}
+    </ScrollView>
+  );
+
+  const CompletedTab = () => (
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      style={{ backgroundColor: theme.background }}
+    >
+      {renderBookings(bookings.completed)}
+    </ScrollView>
+  );
+
+  const TopTab = createMaterialTopTabNavigator();
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       <TopTab.Navigator
         screenOptions={{
           swipeEnabled: true,
-          tabBarIndicatorStyle: { backgroundColor: "#8C52FF", height: 3 },
-          tabBarLabelStyle: { fontWeight: "600" },
+          tabBarIndicatorStyle: { backgroundColor: theme.accent, height: 3 },
+          tabBarLabelStyle: { fontWeight: "600", color: theme.text },
+          tabBarStyle: { backgroundColor: theme.background },
         }}
       >
         <TopTab.Screen name="Pending/Active" component={PendingTab} />
+        <TopTab.Screen name="Completed" component={CompletedTab} />
         <TopTab.Screen name="Cancelled" component={CancelledTab} />
       </TopTab.Navigator>
     </SafeAreaView>
   );
+};
+
+export default function BookingsScreen({ navigation, route }) {
+  const { theme } = useTheme();
+  return <Bookings route={route} navigation={navigation} />;
 }
 
 const styles = StyleSheet.create({
@@ -113,7 +180,6 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   card: {
-    backgroundColor: "#EFE9FF",
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
@@ -127,15 +193,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   serviceLabel: {
-    backgroundColor: "#D9D9D9",
-    color: "#000",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
     fontSize: 12,
   },
   detailsLink: {
-    color: "#8C52FF",
     fontWeight: "600",
     fontSize: 15,
   },
@@ -158,7 +221,39 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   date: {
-    color: "#444",
     fontSize: 12,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+  },
+  emptyText: {
+    marginTop: 10,
+    fontSize: 16,
+  },
+  serviceDetails: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 4,
+    paddingTop: 4,
+    borderTopWidth: 0.5,
+    borderTopColor: "#ccc",
+  },
+  serviceType: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  servicePrice: {
+    fontSize: 12,
+    fontWeight: "bold",
   },
 });

@@ -1,30 +1,82 @@
 import React from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
+import { useAuth } from "../Components/AuthContext";
+import { CommonActions } from "@react-navigation/native";
+import { useTheme } from "../Components/ThemeContext";
 
-const UserProfile = () => {
+const UserProfile = ({ navigation, route }) => {
+  const { user, logout } = useAuth();
+  const { theme } = useTheme();
+  const { userType } = route.params || { userType: "client" };
+
+  const handleLogout = async () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Logout",
+        onPress: async () => {
+          const result = await logout();
+          if (result.success) {
+            // Navigate back to the auth screen and reset navigation
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: "Auth" }],
+              })
+            );
+          } else {
+            Alert.alert("Error", "Failed to log out. Please try again.");
+          }
+        },
+      },
+    ]);
+  };
+
+  const navigateToSettings = () => {
+    navigation.navigate("Settings");
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Image
         source={require("../assets/images/Profile.jpg")}
         style={styles.avatar}
       />
-      <Text style={styles.name}>Rensu Buenaflor</Text>
-      <Text style={styles.email}>cbuenaflor2@ssct.edu.ph</Text>
+      <Text style={[styles.name, { color: theme.text }]}>
+        {user?.username || "User"}
+      </Text>
+      <Text style={[styles.email, { color: theme.text }]}>
+        {user?.email ||
+          `Account Type: ${
+            userType.charAt(0).toUpperCase() + userType.slice(1)
+          }`}
+      </Text>
 
-      <TouchableOpacity style={styles.editButton}>
-        <Text style={styles.editButtonText}>Edit Profile</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingRow}>
+      <TouchableOpacity style={styles.settingRow} onPress={navigateToSettings}>
         <View style={styles.settingLeft}>
-          <Feather name="settings" size={24} color="#9F7AEA" />
-          <Text style={styles.settingText}>Settings</Text>
+          <Feather name="settings" size={24} color={theme.accent} />
+          <Text style={[styles.settingText, { color: theme.text }]}>
+            Settings
+          </Text>
         </View>
-        <MaterialIcons name="chevron-right" size={24} color="black" />
+        <MaterialIcons name="chevron-right" size={24} color={theme.text} />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.logoutButton}>
+      <TouchableOpacity
+        style={[styles.logoutButton, { borderColor: theme.border }]}
+        onPress={handleLogout}
+      >
         <Feather name="power" size={20} color="red" />
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
@@ -39,7 +91,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     paddingVertical: 50,
-    backgroundColor: "#fff",
   },
   avatar: {
     width: 100,
@@ -58,14 +109,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   editButton: {
-    backgroundColor: "#EDE9FE",
     paddingVertical: 10,
     paddingHorizontal: 40,
     borderRadius: 25,
     marginBottom: 30,
   },
   editButtonText: {
-    color: "black",
     fontWeight: "600",
   },
   settingRow: {
@@ -90,7 +139,6 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     borderWidth: 1,
     marginTop: 30,
-    borderColor: "#000",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 25,
