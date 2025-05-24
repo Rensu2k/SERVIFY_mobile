@@ -12,11 +12,48 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useAuth } from "../Components/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SERVICES_STORAGE_KEY = "servify_provider_services";
+
+const SERVICE_CATEGORIES = [
+  { id: "plumbing", label: "Plumbing", icon: "wrench", color: "#3F51B5" },
+  { id: "electrical", label: "Electrical", icon: "bolt", color: "#FF9800" },
+  {
+    id: "aircon",
+    label: "Aircon Cleaning",
+    icon: "snowflake",
+    color: "#2196F3",
+  },
+  { id: "laundry", label: "Laundry", icon: "tshirt", color: "#9C27B0" },
+  { id: "housekeeping", label: "Housekeeping", icon: "home", color: "#4CAF50" },
+  { id: "gardening", label: "Gardening", icon: "seedling", color: "#8BC34A" },
+  { id: "automotive", label: "Automotive", icon: "car", color: "#607D8B" },
+  {
+    id: "tutoring",
+    label: "Tutoring",
+    icon: "graduation-cap",
+    color: "#795548",
+  },
+  { id: "beauty", label: "Beauty & Wellness", icon: "cut", color: "#E91E63" },
+  { id: "carpentry", label: "Carpentry", icon: "hammer", color: "#5D4037" },
+  { id: "painting", label: "Painting", icon: "paint-brush", color: "#FF5722" },
+  {
+    id: "delivery",
+    label: "Delivery Service",
+    icon: "truck",
+    color: "#009688",
+  },
+  {
+    id: "cooking",
+    label: "Cooking/Catering",
+    icon: "utensils",
+    color: "#FF6F00",
+  },
+  { id: "other", label: "Other", icon: "ellipsis-h", color: "#9E9E9E" },
+];
 
 const ManageServicesScreen = ({ navigation }) => {
   const { user } = useAuth();
@@ -29,6 +66,7 @@ const ManageServicesScreen = ({ navigation }) => {
     description: "",
     price: "",
     duration: "",
+    category: "plumbing", // Default category
   });
 
   useEffect(() => {
@@ -90,6 +128,10 @@ const ManageServicesScreen = ({ navigation }) => {
       Alert.alert("Error", "Price must be a number");
       return false;
     }
+    if (!formData.category) {
+      Alert.alert("Error", "Service category is required");
+      return false;
+    }
     return true;
   };
 
@@ -100,6 +142,7 @@ const ManageServicesScreen = ({ navigation }) => {
       description: "",
       price: "",
       duration: "",
+      category: "plumbing", // Default category
     });
     setModalVisible(true);
   };
@@ -111,6 +154,7 @@ const ManageServicesScreen = ({ navigation }) => {
       description: service.description || "",
       price: service.price.toString(),
       duration: service.duration || "",
+      category: service.category || "plumbing", // Default to plumbing if not set
     });
     setModalVisible(true);
   };
@@ -145,6 +189,7 @@ const ManageServicesScreen = ({ navigation }) => {
       description: formData.description,
       price: parseFloat(formData.price),
       duration: formData.duration,
+      category: formData.category,
     };
 
     if (currentService) {
@@ -179,43 +224,70 @@ const ManageServicesScreen = ({ navigation }) => {
     }
   };
 
-  const renderServiceItem = ({ item }) => (
-    <View style={styles.serviceCard}>
-      <View style={styles.serviceHeader}>
-        <Text style={styles.serviceName}>{item.name}</Text>
-        <Text style={styles.servicePrice}>₱{item.price.toFixed(2)}</Text>
-      </View>
+  const getCategoryInfo = (categoryId) => {
+    return (
+      SERVICE_CATEGORIES.find((cat) => cat.id === categoryId) ||
+      SERVICE_CATEGORIES[0]
+    );
+  };
 
-      {item.description ? (
-        <Text style={styles.serviceDescription}>{item.description}</Text>
-      ) : null}
+  const renderServiceItem = ({ item }) => {
+    const categoryInfo = getCategoryInfo(item.category);
 
-      {item.duration ? (
-        <View style={styles.serviceDetail}>
-          <Ionicons name="time-outline" size={16} color="#666" />
-          <Text style={styles.serviceDetailText}>{item.duration}</Text>
+    return (
+      <View style={styles.serviceCard}>
+        <View style={styles.serviceHeader}>
+          <View style={styles.serviceNameContainer}>
+            <Text style={styles.serviceName}>{item.name}</Text>
+            <View
+              style={[
+                styles.categoryBadge,
+                { backgroundColor: categoryInfo.color },
+              ]}
+            >
+              <FontAwesome5
+                name={categoryInfo.icon}
+                size={12}
+                color="white"
+                style={styles.categoryIcon}
+              />
+              <Text style={styles.categoryText}>{categoryInfo.label}</Text>
+            </View>
+          </View>
+          <Text style={styles.servicePrice}>₱{item.price.toFixed(2)}</Text>
         </View>
-      ) : null}
 
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.editButton]}
-          onPress={() => handleEditService(item)}
-        >
-          <Ionicons name="create-outline" size={18} color="white" />
-          <Text style={styles.actionButtonText}>Edit</Text>
-        </TouchableOpacity>
+        {item.description ? (
+          <Text style={styles.serviceDescription}>{item.description}</Text>
+        ) : null}
 
-        <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => handleDeleteService(item.id)}
-        >
-          <Ionicons name="trash-outline" size={18} color="white" />
-          <Text style={styles.actionButtonText}>Delete</Text>
-        </TouchableOpacity>
+        {item.duration ? (
+          <View style={styles.serviceDetail}>
+            <Ionicons name="time-outline" size={16} color="#666" />
+            <Text style={styles.serviceDetailText}>{item.duration}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.editButton]}
+            onPress={() => handleEditService(item)}
+          >
+            <Ionicons name="create-outline" size={18} color="white" />
+            <Text style={styles.actionButtonText}>Edit</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={() => handleDeleteService(item.id)}
+          >
+            <Ionicons name="trash-outline" size={18} color="white" />
+            <Text style={styles.actionButtonText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -248,7 +320,8 @@ const ManageServicesScreen = ({ navigation }) => {
               You haven't added any services yet
             </Text>
             <Text style={styles.emptySubtext}>
-              Start by adding services you provide
+              Start by adding services in categories like Plumbing, Laundry,
+              etc.
             </Text>
           </View>
         ) : (
@@ -287,10 +360,56 @@ const ManageServicesScreen = ({ navigation }) => {
                 <Text style={styles.label}>Service Name *</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g. Basic Plumbing"
+                  placeholder="e.g. Basic Plumbing Repair"
                   value={formData.name}
                   onChangeText={(text) => handleInputChange("name", text)}
                 />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Category *</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.categoryScrollView}
+                >
+                  <View style={styles.categoryOptionsContainer}>
+                    {SERVICE_CATEGORIES.map((category) => (
+                      <TouchableOpacity
+                        key={category.id}
+                        style={[
+                          styles.categoryOption,
+                          formData.category === category.id &&
+                            styles.categoryOptionSelected,
+                          { borderColor: category.color },
+                        ]}
+                        onPress={() =>
+                          handleInputChange("category", category.id)
+                        }
+                      >
+                        <FontAwesome5
+                          name={category.icon}
+                          size={16}
+                          color={
+                            formData.category === category.id
+                              ? "white"
+                              : category.color
+                          }
+                          style={styles.categoryOptionIcon}
+                        />
+                        <Text
+                          style={[
+                            styles.categoryOptionText,
+                            formData.category === category.id &&
+                              styles.categoryOptionTextSelected,
+                          ]}
+                        >
+                          {category.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
               </View>
 
               <View style={styles.formGroup}>
@@ -401,14 +520,35 @@ const styles = StyleSheet.create({
   serviceHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 10,
+  },
+  serviceNameContainer: {
+    flex: 1,
+    marginRight: 10,
   },
   serviceName: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
-    flex: 1,
+    marginBottom: 5,
+  },
+  categoryBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+    marginBottom: 5,
+  },
+  categoryIcon: {
+    marginRight: 4,
+  },
+  categoryText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
   },
   servicePrice: {
     fontSize: 18,
@@ -533,6 +673,38 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 100,
     textAlignVertical: "top",
+  },
+  categoryScrollView: {
+    marginBottom: 10,
+  },
+  categoryOptionsContainer: {
+    flexDirection: "row",
+    paddingRight: 20,
+  },
+  categoryOption: {
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#f8f9fa",
+    marginRight: 10,
+    borderWidth: 2,
+    minWidth: 100,
+  },
+  categoryOptionSelected: {
+    backgroundColor: "#6A5ACD",
+    borderColor: "#6A5ACD",
+  },
+  categoryOptionIcon: {
+    marginBottom: 5,
+  },
+  categoryOptionText: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#333",
+    textAlign: "center",
+  },
+  categoryOptionTextSelected: {
+    color: "white",
   },
   saveButton: {
     backgroundColor: "#6A5ACD",

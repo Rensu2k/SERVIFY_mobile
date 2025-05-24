@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,22 +9,183 @@ import {
   Modal,
   Alert,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Components/ThemeContext";
 import { useBookings } from "../Components/BookingsContext";
 import { useAuth } from "../Components/AuthContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const AVAILABILITY_STORAGE_KEY = "servify_provider_availability";
 
 const ProviderDetailsScreen = ({ route, navigation }) => {
-  const { provider } = route.params;
+  const { provider } = route.params || {};
+
+  // Safety check for provider data
+  if (!provider) {
+    return (
+      <SafeAreaView
+        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+      >
+        <Text>Error: Provider information not found</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={{ color: "#6A5ACD", marginTop: 10 }}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
   const { theme } = useTheme();
   const { addBooking } = useBookings();
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [selectedService, setSelectedService] = useState(null);
+  const [loadingAvailability, setLoadingAvailability] = useState(true);
+  const [availableDates, setAvailableDates] = useState([]);
+  const [availableTimes, setAvailableTimes] = useState([]);
+  const [providerAvailability, setProviderAvailability] = useState({});
+
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Time slot mappings
+  const timeSlotMappings = {
+    "Morning (8AM - 12PM)": [
+      "8:00 AM",
+      "9:00 AM",
+      "10:00 AM",
+      "11:00 AM",
+      "12:00 PM",
+    ],
+    "Afternoon (12PM - 5PM)": [
+      "12:00 PM",
+      "1:00 PM",
+      "2:00 PM",
+      "3:00 PM",
+      "4:00 PM",
+      "5:00 PM",
+    ],
+    "Evening (5PM - 9PM)": [
+      "5:00 PM",
+      "6:00 PM",
+      "7:00 PM",
+      "8:00 PM",
+      "9:00 PM",
+    ],
+  };
+
+  const daysOfWeek = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
+
+  useEffect(() => {
+    loadProviderAvailability();
+  }, [provider]);
+
+  useEffect(() => {
+    if (Object.keys(providerAvailability).length > 0) {
+      generateAvailableDates();
+    }
+  }, [providerAvailability]);
+
+  useEffect(() => {
+    if (selectedDate) {
+      generateAvailableTimesForDate(selectedDate);
+    }
+  }, [selectedDate, providerAvailability]);
+
+  const loadProviderAvailability = async () => {
+    try {
+      setLoadingAvailability(true);
+      const storedAvailability = await AsyncStorage.getItem(
+        AVAILABILITY_STORAGE_KEY
+      );
+
+      if (storedAvailability) {
+        const parsedAvailability = JSON.parse(storedAvailability);
+        const providerSchedule = parsedAvailability[provider.id] || {};
+        setProviderAvailability(providerSchedule);
+      } else {
+        // No availability set - use default availability
+        setProviderAvailability({});
+      }
+    } catch (error) {
+      console.error("Error loading provider availability:", error);
+      setProviderAvailability({});
+    } finally {
+      setLoadingAvailability(false);
+    }
+  };
+
+  const generateAvailableDates = () => {
+    const dates = [];
+    const today = new Date();
+
+    // Generate next 14 days and filter by provider's available days
+    for (let i = 0; i < 14; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+
+      const dayName = daysOfWeek[date.getDay() === 0 ? 6 : date.getDay() - 1]; // Convert to Monday-Sunday format
+
+      // Check if provider is available on this day
+      if (providerAvailability[dayName]?.enabled) {
+        dates.push(date);
+      }
+    }
+
+    setAvailableDates(dates);
+  };
+
+  const generateAvailableTimesForDate = (date) => {
+    const dayName = daysOfWeek[date.getDay() === 0 ? 6 : date.getDay() - 1];
+    const dayAvailability = providerAvailability[dayName];
+
+    if (!dayAvailability || !dayAvailability.enabled) {
+      setAvailableTimes([]);
+      return;
+    }
+
+    const times = [];
+
+    // Check each time slot and add individual times if the slot is enabled
+    Object.entries(timeSlotMappings).forEach(([slotName, timeList]) => {
+      if (dayAvailability.timeSlots && dayAvailability.timeSlots[slotName]) {
+        times.push(...timeList);
+      }
+    });
+
+    // Remove duplicates (like 12:00 PM which appears in both Morning and Afternoon)
+    const uniqueTimes = [...new Set(times)];
+
+    // Sort times chronologically
+    uniqueTimes.sort((a, b) => {
+      const timeA = convertTo24Hour(a);
+      const timeB = convertTo24Hour(b);
+      return timeA - timeB;
+    });
+
+    setAvailableTimes(uniqueTimes);
+  };
+
+  const convertTo24Hour = (time12h) => {
+    const [time, modifier] = time12h.split(" ");
+    let [hours, minutes] = time.split(":");
+    if (hours === "12") {
+      hours = "00";
+    }
+    if (modifier === "PM") {
+      hours = parseInt(hours, 10) + 12;
+    }
+    return parseInt(hours + minutes, 10);
+  };
 
   // Mock data for reviews
   const reviews = [
@@ -51,49 +212,18 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
     },
   ];
 
-  // Mock data for services offered
-  const services = [
-    {
-      id: "s1",
-      name: `Regular Service`,
-      price: "₱350",
-      description: "Standard service package",
-    },
-    {
-      id: "s2",
-      name: `Premium Service`,
-      price: "₱650",
-      description: "Premium service with additional features",
-    },
-    {
-      id: "s3",
-      name: "Express Service",
-      price: "₱850",
-      description: "Fast turnaround within 3 hours",
-    },
-  ];
-
-  // Generate available dates (next 7 days)
-  const availableDates = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() + i);
-    return date;
-  });
-
-  // Generate available time slots
-  const availableTimes = [
-    "9:00 AM",
-    "10:00 AM",
-    "11:00 AM",
-    "1:00 PM",
-    "2:00 PM",
-    "3:00 PM",
-    "4:00 PM",
-  ];
-
   const handleBooking = () => {
     if (!user) {
       Alert.alert("Error", "You need to be logged in to make a booking");
+      return;
+    }
+
+    // Check if provider is available for booking
+    if (provider?.userInfo?.isAvailable === false) {
+      Alert.alert(
+        "Provider Unavailable",
+        "This service provider is currently not accepting new bookings. Please try again later or contact them directly."
+      );
       return;
     }
 
@@ -102,15 +232,10 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
       return;
     }
 
-    if (!selectedService) {
-      Alert.alert("Error", "Please select a service type");
-      return;
-    }
-
     Alert.alert(
       "Booking Confirmation",
-      `You are about to book ${provider.name} for ${
-        selectedService.name
+      `You are about to book ${
+        provider?.name || "this provider"
       } on ${selectedDate.toDateString()} at ${selectedTime}. Proceed?`,
       [
         {
@@ -124,7 +249,6 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
             const bookingDetails = {
               id: `booking-${Date.now()}`,
               provider: provider,
-              service: selectedService,
               date: selectedDate,
               time: selectedTime,
               status: "Confirmed",
@@ -195,44 +319,6 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
     );
   };
 
-  const renderServiceItem = ({ item }) => (
-    <TouchableOpacity
-      style={[
-        styles.serviceItem,
-        {
-          backgroundColor: theme.card,
-          borderColor:
-            selectedService && selectedService.id === item.id
-              ? theme.accent
-              : "transparent",
-          borderWidth:
-            selectedService && selectedService.id === item.id ? 2 : 0,
-        },
-      ]}
-      onPress={() => setSelectedService(item)}
-    >
-      <View style={styles.serviceHeader}>
-        <Text style={[styles.serviceName, { color: theme.text }]}>
-          {item.name}
-        </Text>
-        <Text style={[styles.servicePrice, { color: theme.accent }]}>
-          {item.price}
-        </Text>
-      </View>
-      <Text style={[styles.serviceDescription, { color: theme.text }]}>
-        {item.description}
-      </Text>
-      {selectedService && selectedService.id === item.id && (
-        <View style={styles.selectedServiceIndicator}>
-          <Ionicons name="checkmark-circle" size={20} color={theme.accent} />
-          <Text style={[styles.selectedText, { color: theme.accent }]}>
-            Selected
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-
   const renderReviewItem = ({ item }) => (
     <View style={[styles.reviewItem, { backgroundColor: theme.card }]}>
       <View style={styles.reviewHeader}>
@@ -267,50 +353,70 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Provider Info Section */}
         <View style={styles.providerSection}>
-          <Image source={provider.image} style={styles.providerImage} />
+          <Image
+            source={
+              provider?.image || {
+                uri: "https://via.placeholder.com/100x100/cccccc/000000?text=Profile",
+              }
+            }
+            style={styles.providerImage}
+          />
           <View style={styles.providerInfo}>
             <Text style={[styles.providerName, { color: theme.text }]}>
-              {provider.name}
+              {provider?.name || "Unknown Provider"}
             </Text>
             <View style={styles.ratingContainer}>
               <Ionicons name="star" size={16} color="#FFD700" />
               <Text style={[styles.ratingText, { color: theme.text }]}>
-                {provider.rating} ({provider.reviews} reviews)
+                {provider?.rating || "4.5"} ({provider?.reviews || "0"} reviews)
               </Text>
             </View>
             <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{provider.category}</Text>
+              <Text style={styles.categoryText}>
+                {provider?.category || "Service"}
+              </Text>
+            </View>
+
+            {/* Availability Status */}
+            <View
+              style={[
+                styles.availabilityBadge,
+                {
+                  backgroundColor:
+                    provider?.userInfo?.isAvailable !== false
+                      ? "#4CAF50"
+                      : "#F44336",
+                },
+              ]}
+            >
+              <Ionicons
+                name={
+                  provider?.userInfo?.isAvailable !== false
+                    ? "checkmark-circle"
+                    : "close-circle"
+                }
+                size={14}
+                color="white"
+              />
+              <Text style={styles.availabilityText}>
+                {provider?.userInfo?.isAvailable !== false
+                  ? "Available"
+                  : "Unavailable"}
+              </Text>
             </View>
           </View>
         </View>
-
         {/* About Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             About
           </Text>
           <Text style={[styles.aboutText, { color: theme.text }]}>
-            Professional {provider.category} service provider with{" "}
-            {Math.floor(Math.random() * 5) + 3} years of experience. Specialized
-            in providing high-quality services with attention to detail and
-            customer satisfaction.
+            {(provider?.userInfo?.serviceDescription &&
+              typeof provider.userInfo.serviceDescription === "string" &&
+              provider.userInfo.serviceDescription.trim()) ||
+              "No job description provided yet."}
           </Text>
-        </View>
-
-        {/* Services Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Services Offered
-          </Text>
-          <Text style={[styles.serviceSelectionText, { color: theme.text }]}>
-            Please select a service type:
-          </Text>
-          <FlatList
-            data={services}
-            renderItem={renderServiceItem}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-          />
         </View>
 
         {/* Reviews Section */}
@@ -325,95 +431,193 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
             scrollEnabled={false}
           />
         </View>
-
         {/* Booking Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             Book an Appointment
           </Text>
 
-          {/* Date Selection */}
-          <Text style={[styles.bookingLabel, { color: theme.text }]}>
-            Select Date:
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.dateSelector}
-          >
-            {availableDates.map((date, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.dateItem,
-                  selectedDate && selectedDate.getDate() === date.getDate()
-                    ? { backgroundColor: theme.accent }
-                    : { backgroundColor: theme.card },
-                ]}
-                onPress={() => setSelectedDate(date)}
-              >
-                <Text
-                  style={[
-                    styles.dateText,
-                    {
-                      color:
-                        selectedDate &&
-                        selectedDate.getDate() === date.getDate()
-                          ? "white"
-                          : theme.text,
-                    },
-                  ]}
-                >
-                  {formatDate(date)}
+          {/* Loading availability */}
+          {loadingAvailability && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={theme.accent} />
+              <Text style={[styles.loadingText, { color: theme.text }]}>
+                Loading availability...
+              </Text>
+            </View>
+          )}
+
+          {/* Availability Notice */}
+          {provider?.userInfo?.isAvailable === false && (
+            <View style={styles.unavailableNotice}>
+              <Ionicons name="information-circle" size={20} color="#F44336" />
+              <Text style={[styles.unavailableText, { color: theme.text }]}>
+                This provider is currently not accepting new bookings.
+              </Text>
+            </View>
+          )}
+
+          {/* No availability set notice */}
+          {!loadingAvailability &&
+            Object.keys(providerAvailability).length === 0 && (
+              <View style={styles.unavailableNotice}>
+                <Ionicons name="information-circle" size={20} color="#FF9800" />
+                <Text style={[styles.unavailableText, { color: theme.text }]}>
+                  This provider hasn't set their availability schedule yet.
                 </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+              </View>
+            )}
+
+          {/* No available dates notice */}
+          {!loadingAvailability &&
+            Object.keys(providerAvailability).length > 0 &&
+            availableDates.length === 0 && (
+              <View style={styles.unavailableNotice}>
+                <Ionicons name="information-circle" size={20} color="#FF9800" />
+                <Text style={[styles.unavailableText, { color: theme.text }]}>
+                  No available dates in the next 2 weeks based on provider's
+                  schedule.
+                </Text>
+              </View>
+            )}
+
+          {/* Date Selection */}
+          {!loadingAvailability && availableDates.length > 0 && (
+            <>
+              <Text style={[styles.bookingLabel, { color: theme.text }]}>
+                Select Date:
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.dateSelector}
+              >
+                {availableDates.map((date, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.dateItem,
+                      selectedDate && selectedDate.getDate() === date.getDate()
+                        ? { backgroundColor: theme.accent }
+                        : { backgroundColor: theme.card },
+                    ]}
+                    onPress={() => setSelectedDate(date)}
+                  >
+                    <Text
+                      style={[
+                        styles.dateText,
+                        {
+                          color:
+                            selectedDate &&
+                            selectedDate.getDate() === date.getDate()
+                              ? "white"
+                              : theme.text,
+                        },
+                      ]}
+                    >
+                      {formatDate(date)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </>
+          )}
 
           {/* Time Selection */}
-          <Text style={[styles.bookingLabel, { color: theme.text }]}>
-            Select Time:
-          </Text>
-          <View style={styles.timeSelector}>
-            {availableTimes.map((time, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.timeItem,
-                  selectedTime === time
-                    ? { backgroundColor: theme.accent }
-                    : { backgroundColor: theme.card },
-                ]}
-                onPress={() => setSelectedTime(time)}
-              >
-                <Text
-                  style={[
-                    styles.timeText,
-                    { color: selectedTime === time ? "white" : theme.text },
-                  ]}
-                >
-                  {time}
+          {!loadingAvailability &&
+            selectedDate &&
+            availableTimes.length > 0 && (
+              <>
+                <Text style={[styles.bookingLabel, { color: theme.text }]}>
+                  Select Time:
                 </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                <View style={styles.timeSelector}>
+                  {availableTimes.map((time, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.timeItem,
+                        selectedTime === time
+                          ? { backgroundColor: theme.accent }
+                          : { backgroundColor: theme.card },
+                      ]}
+                      onPress={() => setSelectedTime(time)}
+                    >
+                      <Text
+                        style={[
+                          styles.timeText,
+                          {
+                            color: selectedTime === time ? "white" : theme.text,
+                          },
+                        ]}
+                      >
+                        {time}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+
+          {/* No times available for selected date */}
+          {!loadingAvailability &&
+            selectedDate &&
+            availableTimes.length === 0 && (
+              <View style={styles.noTimesContainer}>
+                <Text style={[styles.noTimesText, { color: theme.text }]}>
+                  No available time slots for {formatDate(selectedDate)}
+                </Text>
+              </View>
+            )}
 
           {/* Book Button */}
-          <TouchableOpacity
-            style={[
-              styles.bookButton,
-              {
-                backgroundColor: selectedService ? theme.accent : "#ccc",
-                opacity: selectedService ? 1 : 0.7,
-              },
-            ]}
-            onPress={handleBooking}
-            disabled={!selectedService}
-          >
-            <Text style={styles.bookButtonText}>
-              {selectedService ? "Book Now" : "Select a Service First"}
-            </Text>
-          </TouchableOpacity>
+          {!loadingAvailability && availableDates.length > 0 && (
+            <TouchableOpacity
+              style={[
+                styles.bookButton,
+                {
+                  backgroundColor:
+                    provider?.userInfo?.isAvailable !== false &&
+                    selectedDate &&
+                    selectedTime
+                      ? theme.accent
+                      : "#CCCCCC",
+                  opacity:
+                    provider?.userInfo?.isAvailable !== false &&
+                    selectedDate &&
+                    selectedTime
+                      ? 1
+                      : 0.6,
+                },
+              ]}
+              onPress={handleBooking}
+              disabled={
+                provider?.userInfo?.isAvailable === false ||
+                !selectedDate ||
+                !selectedTime
+              }
+            >
+              <Text
+                style={[
+                  styles.bookButtonText,
+                  {
+                    color:
+                      provider?.userInfo?.isAvailable !== false &&
+                      selectedDate &&
+                      selectedTime
+                        ? "white"
+                        : "#777777",
+                  },
+                ]}
+              >
+                {provider?.userInfo?.isAvailable === false
+                  ? "Provider Unavailable"
+                  : !selectedDate || !selectedTime
+                  ? "Select Date & Time"
+                  : "Book Now"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -474,6 +678,37 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "500",
   },
+  availabilityBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  availabilityText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+  unavailableNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFEBEE",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: "#F44336",
+  },
+  unavailableText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+    fontStyle: "italic",
+  },
   section: {
     padding: 16,
     borderTopWidth: 1,
@@ -487,42 +722,7 @@ const styles = StyleSheet.create({
   aboutText: {
     lineHeight: 22,
   },
-  serviceItem: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderWidth: 0,
-  },
-  serviceHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  serviceName: {
-    fontWeight: "600",
-    fontSize: 15,
-  },
-  servicePrice: {
-    fontWeight: "bold",
-  },
-  serviceDescription: {
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  selectedServiceIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  selectedText: {
-    fontWeight: "500",
-    marginLeft: 5,
-  },
-  serviceSelectionText: {
-    fontSize: 14,
-    marginBottom: 12,
-    fontStyle: "italic",
-  },
+
   reviewItem: {
     padding: 12,
     borderRadius: 8,
@@ -590,6 +790,25 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    justifyContent: "center",
+  },
+  loadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+  },
+  noTimesContainer: {
+    padding: 16,
+    alignItems: "center",
+  },
+  noTimesText: {
+    fontSize: 14,
+    fontStyle: "italic",
+    opacity: 0.7,
   },
 });
 

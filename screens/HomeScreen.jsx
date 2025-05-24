@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   StatusBar,
@@ -9,35 +9,93 @@ import {
   Text,
   StyleSheet,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import BannerSlider from "../Components/BannerSlider";
 import ServiceCategory from "../Components/ServiceCategory";
 import ServiceProvider from "../Components/ServiceProvider";
+import ServiceCard from "../Components/ServiceCard";
 import { useTheme } from "../Components/ThemeContext";
+import {
+  getAvailableCategories,
+  getProvidersByCategory,
+  getServicesByCategoryWithProviders,
+  SERVICE_CATEGORIES,
+  getCategoryInfo,
+} from "../Components/ServicesHelper";
 
 const HomeScreenContent = ({ navigation }) => {
   const { theme } = useTheme();
   const [activeCategory, setActiveCategory] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [availableCategories, setAvailableCategories] = useState([]);
+  const [servicesByCategory, setServicesByCategory] = useState({});
 
-  const handleCategoryPress = (categoryName) => {
-    setActiveCategory(categoryName);
-    navigation.navigate("AllProviders", { category: categoryName });
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+
+      // Get available categories (only ones that have services)
+      const categories = await getAvailableCategories();
+      setAvailableCategories(categories);
+
+      // Load individual services for each category (limit to first few for home screen)
+      const servicesData = {};
+      for (const category of categories.slice(0, 3)) {
+        // Show only first 3 categories on home
+        const services = await getServicesByCategoryWithProviders(category.id);
+        servicesData[category.id] = services.slice(0, 8); // Limit to 8 services per category for better scrolling
+      }
+      setServicesByCategory(servicesData);
+    } catch (error) {
+      console.error("Error loading home data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSeeAll = (category) => {
-    navigation.navigate("AllProviders", { category });
+  const handleCategoryPress = (categoryId) => {
+    setActiveCategory(categoryId);
+    navigation.navigate("AllProviders", { category: categoryId });
+  };
+
+  const handleSeeAll = (categoryId) => {
+    navigation.navigate("AllProviders", { category: categoryId });
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // In a real app, you would fetch fresh data here
-    // For this demo, we'll just simulate a delay
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
+    await loadData();
+    setRefreshing(false);
   };
+
+  const handleServicePress = (service, provider) => {
+    navigation.navigate("ProviderDetails", {
+      provider,
+      selectedService: service,
+    });
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+      >
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.accent} />
+          <Text style={[styles.loadingText, { color: theme.text }]}>
+            Loading services...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -69,7 +127,7 @@ const HomeScreenContent = ({ navigation }) => {
           <Ionicons name="search" size={20} color={theme.text} />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
-            placeholder="Search"
+            placeholder="Search services..."
             placeholderTextColor={
               theme.text === "#FFFFFF" ? "#AAAAAA" : "#A9A9A9"
             }
@@ -78,158 +136,93 @@ const HomeScreenContent = ({ navigation }) => {
 
         <BannerSlider />
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoriesContainer}
-        >
-          <ServiceCategory
-            icon={require("../assets/images/Laundry.png")}
-            name="Laundry"
-            theme={theme}
-            isActive={activeCategory === "Laundry"}
-            onPress={() => handleCategoryPress("Laundry")}
-          />
-          <ServiceCategory
-            icon={require("../assets/images/Jointpipes.jpg")}
-            name="Plumbing"
-            theme={theme}
-            isActive={activeCategory === "Plumbing"}
-            onPress={() => handleCategoryPress("Plumbing")}
-          />
-          <ServiceCategory
-            icon={require("../assets/images/Broom.png")}
-            name="Cleaning"
-            theme={theme}
-            isActive={activeCategory === "Cleaning"}
-            onPress={() => handleCategoryPress("Cleaning")}
-          />
-          <ServiceCategory
-            icon={require("../assets/images/NailCutter.png")}
-            name="Manicure"
-            theme={theme}
-            isActive={activeCategory === "Manicure"}
-            onPress={() => handleCategoryPress("Manicure")}
-          />
-          <ServiceCategory
-            icon={require("../assets/images/Massage.png")}
-            name="Massage"
-            theme={theme}
-            isActive={activeCategory === "Massage"}
-            onPress={() => handleCategoryPress("Massage")}
-          />
-          <ServiceCategory
-            icon={require("../assets/images/Technician.jpg")}
-            name="Technician"
-            theme={theme}
-            isActive={activeCategory === "Technician"}
-            onPress={() => handleCategoryPress("Technician")}
-          />
-        </ScrollView>
+        {/* Available Categories */}
+        {availableCategories.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoriesContainer}
+          >
+            {availableCategories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[
+                  styles.categoryCard,
+                  activeCategory === category.id && styles.activeCategoryCard,
+                ]}
+                onPress={() => handleCategoryPress(category.id)}
+              >
+                <FontAwesome5
+                  name={category.icon}
+                  size={24}
+                  color={
+                    activeCategory === category.id ? "white" : category.color
+                  }
+                />
+                <Text
+                  style={[
+                    styles.categoryText,
+                    {
+                      color:
+                        activeCategory === category.id ? "white" : theme.text,
+                    },
+                  ]}
+                >
+                  {category.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Laundry
-          </Text>
-          <TouchableOpacity onPress={() => handleSeeAll("Laundry")}>
-            <Text style={[styles.seeAllText, { color: theme.accent }]}>
-              See all
+        {/* Services by Category */}
+        {Object.keys(servicesByCategory).length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <FontAwesome5 name="tools" size={64} color="#CCCCCC" />
+            <Text style={[styles.emptyText, { color: theme.text }]}>
+              No services available yet
             </Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.providersContainer}
-        >
-          <ServiceProvider
-            name="Althea Rose Bautista"
-            rating="4.8"
-            reviews="287"
-            image={require("../assets/images/laundry/Althea-Rose-Bautista.png")}
-            theme={theme}
-          />
-          <ServiceProvider
-            name="Hazel Marie Navarro"
-            rating="4.8"
-            reviews="287"
-            image={require("../assets/images/laundry/Hazel-Marie-Navarro.png")}
-            theme={theme}
-          />
-          <ServiceProvider
-            name="Janel Reyes"
-            rating="4.8"
-            reviews="287"
-            image={require("../assets/images/laundry/Janelle-Mae-Reyes.png")}
-            theme={theme}
-          />
-          <ServiceProvider
-            name="Maria Angelica Cruz"
-            rating="4.8"
-            reviews="287"
-            image={require("../assets/images/laundry/Maria-Angelica-Cruz.png")}
-            theme={theme}
-          />
-          <ServiceProvider
-            name="Marites Chismosa Dalisay"
-            rating="4.8"
-            reviews="287"
-            image={require("../assets/images/laundry/Marites-Chismosa-Dalisay.png")}
-            theme={theme}
-          />
-        </ScrollView>
+            <Text style={[styles.emptySubText, { color: theme.text }]}>
+              Service providers haven't added any services yet
+            </Text>
+          </View>
+        ) : (
+          Object.entries(servicesByCategory).map(([categoryId, services]) => {
+            const categoryInfo = getCategoryInfo(categoryId);
 
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Plumbing
-          </Text>
-          <TouchableOpacity onPress={() => handleSeeAll("Plumbing")}>
-            <Text style={[styles.seeAllText, { color: theme.accent }]}>
-              See all
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.providersContainer}
-        >
-          <ServiceProvider
-            name="John Carlo Mendoza"
-            rating="4.9"
-            reviews="156"
-            image={require("../assets/images/plumbing/John-Carlo-Mendoza.png")}
-            theme={theme}
-          />
-          <ServiceProvider
-            name="Joseph Villanueva"
-            rating="4.7"
-            reviews="203"
-            image={require("../assets/images/plumbing/Joseph-Villanueva.png")}
-            theme={theme}
-          />
-          <ServiceProvider
-            name="Joshua Miguel Santos"
-            rating="4.7"
-            reviews="203"
-            image={require("../assets/images/plumbing/Joshua-Miguel-Santos.png")}
-            theme={theme}
-          />
-          <ServiceProvider
-            name="Mark Angelo Reyes"
-            rating="4.7"
-            reviews="203"
-            image={require("../assets/images/plumbing/Mark-Angelo-Reyes.png")}
-            theme={theme}
-          />
-          <ServiceProvider
-            name="Nathaniel Cruz"
-            rating="4.7"
-            reviews="203"
-            image={require("../assets/images/plumbing/Nathaniel-Cruz.png")}
-            theme={theme}
-          />
-        </ScrollView>
+            if (services.length === 0) return null;
+
+            return (
+              <View key={categoryId}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                    {categoryInfo.label}
+                  </Text>
+                  <TouchableOpacity onPress={() => handleSeeAll(categoryId)}>
+                    <Text style={[styles.seeAllText, { color: theme.accent }]}>
+                      See all
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.servicesContainer}
+                >
+                  {services.map((item, index) => (
+                    <ServiceCard
+                      key={`${item.service.id}-${index}`}
+                      service={item.service}
+                      provider={item.provider}
+                      theme={theme}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            );
+          })
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -238,6 +231,15 @@ const HomeScreenContent = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
   },
   searchContainer: {
     flexDirection: "row",
@@ -256,6 +258,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginTop: 10,
   },
+  categoryCard: {
+    alignItems: "center",
+    padding: 15,
+    marginHorizontal: 5,
+    borderRadius: 10,
+    backgroundColor: "#f8f9fa",
+    minWidth: 80,
+  },
+  activeCategoryCard: {
+    backgroundColor: "#6A5ACD",
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 5,
+    textAlign: "center",
+  },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -271,9 +290,28 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontSize: 14,
   },
-  providersContainer: {
+  servicesContainer: {
     paddingLeft: 16,
     marginBottom: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 50,
+    paddingHorizontal: 30,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 20,
+    textAlign: "center",
+  },
+  emptySubText: {
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: "center",
+    opacity: 0.7,
   },
 });
 

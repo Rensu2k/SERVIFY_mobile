@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,272 +8,49 @@ import {
   Image,
   SafeAreaView,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { useTheme } from "../Components/ThemeContext";
-
-// Mock data for service providers by category
-const providersByCategory = {
-  Laundry: [
-    {
-      id: "l1",
-      name: "Althea Rose Bautista",
-      rating: "4.8",
-      reviews: "287",
-      image: require("../assets/images/laundry/Althea-Rose-Bautista.png"),
-      category: "Laundry",
-    },
-    {
-      id: "l2",
-      name: "Hazel Marie Navarro",
-      rating: "4.8",
-      reviews: "287",
-      image: require("../assets/images/laundry/Hazel-Marie-Navarro.png"),
-      category: "Laundry",
-    },
-    {
-      id: "l3",
-      name: "Janel Reyes",
-      rating: "4.8",
-      reviews: "287",
-      image: require("../assets/images/laundry/Janelle-Mae-Reyes.png"),
-      category: "Laundry",
-    },
-    {
-      id: "l4",
-      name: "Maria Angelica Cruz",
-      rating: "4.8",
-      reviews: "287",
-      image: require("../assets/images/laundry/Maria-Angelica-Cruz.png"),
-      category: "Laundry",
-    },
-    {
-      id: "l5",
-      name: "Marites Chismosa Dalisay",
-      rating: "4.8",
-      reviews: "287",
-      image: require("../assets/images/laundry/Marites-Chismosa-Dalisay.png"),
-      category: "Laundry",
-    },
-    {
-      id: "l6",
-      name: "Sarah Johnson",
-      rating: "4.6",
-      reviews: "176",
-      image: require("../assets/images/laundry/Althea-Rose-Bautista.png"),
-      category: "Laundry",
-    },
-    {
-      id: "l7",
-      name: "Emma Davis",
-      rating: "4.7",
-      reviews: "203",
-      image: require("../assets/images/laundry/Hazel-Marie-Navarro.png"),
-      category: "Laundry",
-    },
-    {
-      id: "l8",
-      name: "Jessica Wilson",
-      rating: "4.9",
-      reviews: "312",
-      image: require("../assets/images/laundry/Janelle-Mae-Reyes.png"),
-      category: "Laundry",
-    },
-  ],
-  Plumbing: [
-    {
-      id: "p1",
-      name: "John Carlo Mendoza",
-      rating: "4.9",
-      reviews: "156",
-      image: require("../assets/images/plumbing/John-Carlo-Mendoza.png"),
-      category: "Plumbing",
-    },
-    {
-      id: "p2",
-      name: "Joseph Villanueva",
-      rating: "4.7",
-      reviews: "203",
-      image: require("../assets/images/plumbing/Joseph-Villanueva.png"),
-      category: "Plumbing",
-    },
-    {
-      id: "p3",
-      name: "Joshua Miguel Santos",
-      rating: "4.7",
-      reviews: "203",
-      image: require("../assets/images/plumbing/Joshua-Miguel-Santos.png"),
-      category: "Plumbing",
-    },
-    {
-      id: "p4",
-      name: "Mark Angelo Reyes",
-      rating: "4.7",
-      reviews: "203",
-      image: require("../assets/images/plumbing/Mark-Angelo-Reyes.png"),
-      category: "Plumbing",
-    },
-    {
-      id: "p5",
-      name: "Nathaniel Cruz",
-      rating: "4.7",
-      reviews: "203",
-      image: require("../assets/images/plumbing/Nathaniel-Cruz.png"),
-      category: "Plumbing",
-    },
-    {
-      id: "p6",
-      name: "Robert Chen",
-      rating: "4.8",
-      reviews: "189",
-      image: require("../assets/images/plumbing/John-Carlo-Mendoza.png"),
-      category: "Plumbing",
-    },
-    {
-      id: "p7",
-      name: "David Lee",
-      rating: "4.6",
-      reviews: "145",
-      image: require("../assets/images/plumbing/Joseph-Villanueva.png"),
-      category: "Plumbing",
-    },
-    {
-      id: "p8",
-      name: "Michael Kim",
-      rating: "4.5",
-      reviews: "167",
-      image: require("../assets/images/plumbing/Joshua-Miguel-Santos.png"),
-      category: "Plumbing",
-    },
-  ],
-  Cleaning: [
-    {
-      id: "c1",
-      name: "Patricia Santos",
-      rating: "4.9",
-      reviews: "212",
-      image: require("../assets/images/laundry/Althea-Rose-Bautista.png"),
-      category: "Cleaning",
-    },
-    {
-      id: "c2",
-      name: "Carolina Reyes",
-      rating: "4.7",
-      reviews: "178",
-      image: require("../assets/images/laundry/Hazel-Marie-Navarro.png"),
-      category: "Cleaning",
-    },
-    {
-      id: "c3",
-      name: "Sophia Garcia",
-      rating: "4.8",
-      reviews: "198",
-      image: require("../assets/images/laundry/Janelle-Mae-Reyes.png"),
-      category: "Cleaning",
-    },
-    {
-      id: "c4",
-      name: "Angelica Lopez",
-      rating: "4.6",
-      reviews: "167",
-      image: require("../assets/images/laundry/Maria-Angelica-Cruz.png"),
-      category: "Cleaning",
-    },
-  ],
-  Manicure: [
-    {
-      id: "m1",
-      name: "Isabella Cruz",
-      rating: "4.9",
-      reviews: "231",
-      image: require("../assets/images/laundry/Althea-Rose-Bautista.png"),
-      category: "Manicure",
-    },
-    {
-      id: "m2",
-      name: "Samantha Tan",
-      rating: "4.8",
-      reviews: "189",
-      image: require("../assets/images/laundry/Hazel-Marie-Navarro.png"),
-      category: "Manicure",
-    },
-    {
-      id: "m3",
-      name: "Nicole Lim",
-      rating: "4.7",
-      reviews: "176",
-      image: require("../assets/images/laundry/Janelle-Mae-Reyes.png"),
-      category: "Manicure",
-    },
-  ],
-  Massage: [
-    {
-      id: "ms1",
-      name: "Maria Serapio",
-      rating: "4.9",
-      reviews: "256",
-      image: require("../assets/images/laundry/Althea-Rose-Bautista.png"),
-      category: "Massage",
-    },
-    {
-      id: "ms2",
-      name: "Fatima Reyes",
-      rating: "4.8",
-      reviews: "231",
-      image: require("../assets/images/laundry/Hazel-Marie-Navarro.png"),
-      category: "Massage",
-    },
-    {
-      id: "ms3",
-      name: "Jennifer Wu",
-      rating: "4.7",
-      reviews: "187",
-      image: require("../assets/images/laundry/Janelle-Mae-Reyes.png"),
-      category: "Massage",
-    },
-  ],
-  Technician: [
-    {
-      id: "t1",
-      name: "Marco Santos",
-      rating: "4.9",
-      reviews: "198",
-      image: require("../assets/images/plumbing/John-Carlo-Mendoza.png"),
-      category: "Technician",
-    },
-    {
-      id: "t2",
-      name: "Edwin Perez",
-      rating: "4.8",
-      reviews: "176",
-      image: require("../assets/images/plumbing/Joseph-Villanueva.png"),
-      category: "Technician",
-    },
-    {
-      id: "t3",
-      name: "Miguel Castro",
-      rating: "4.7",
-      reviews: "165",
-      image: require("../assets/images/plumbing/Joshua-Miguel-Santos.png"),
-      category: "Technician",
-    },
-    {
-      id: "t4",
-      name: "Daniel Rivera",
-      rating: "4.6",
-      reviews: "154",
-      image: require("../assets/images/plumbing/Mark-Angelo-Reyes.png"),
-      category: "Technician",
-    },
-  ],
-};
+import {
+  getProvidersByCategory,
+  getAllProviders,
+  getCategoryInfo,
+} from "../Components/ServicesHelper";
 
 const AllProvidersScreen = ({ route, navigation }) => {
-  const { category } = route.params;
   const { theme } = useTheme();
+  const [providers, setProviders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const providers = providersByCategory[category] || [];
+  const category = route.params?.category;
+  const categoryInfo = category ? getCategoryInfo(category) : null;
+
+  useEffect(() => {
+    loadProviders();
+  }, [category]);
+
+  const loadProviders = async () => {
+    try {
+      setLoading(true);
+      let providersList = [];
+
+      if (category) {
+        // Get providers for specific category
+        providersList = await getProvidersByCategory(category);
+      } else {
+        // Get all providers
+        providersList = await getAllProviders();
+      }
+
+      setProviders(providersList);
+    } catch (error) {
+      console.error("Error loading providers:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleProviderPress = (provider) => {
     navigation.navigate("ProviderDetails", { provider });
@@ -281,11 +58,8 @@ const AllProvidersScreen = ({ route, navigation }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // In a real app, you would fetch fresh data here
-    // For this demo, we'll just simulate a delay
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
+    await loadProviders();
+    setRefreshing(false);
   };
 
   const renderProvider = ({ item }) => (
@@ -293,57 +67,189 @@ const AllProvidersScreen = ({ route, navigation }) => {
       style={[styles.providerCard, { backgroundColor: theme.card }]}
       onPress={() => handleProviderPress(item)}
     >
-      <Image source={item.image} style={styles.providerImage} />
-      <Text style={[styles.providerName, { color: theme.text }]}>
-        {item.name}
-      </Text>
-      <View style={styles.ratingContainer}>
-        <Ionicons name="star" size={16} color="#FFD700" />
-        <Text style={[styles.ratingText, { color: theme.text }]}>
-          {item.rating} ({item.reviews})
+      <Image
+        source={require("../assets/images/Profile.jpg")} // Default profile image
+        style={styles.providerImage}
+      />
+      <View style={styles.providerInfo}>
+        {/* Service Names */}
+        {item.services.length > 0 && (
+          <View style={styles.serviceNamesContainer}>
+            {item.services.slice(0, 3).map((service, index) => (
+              <Text
+                key={service.id}
+                style={[styles.serviceNameText, { color: theme.accent }]}
+                numberOfLines={1}
+              >
+                {service.name}
+                {index < Math.min(item.services.length, 3) - 1 && ", "}
+              </Text>
+            ))}
+            {item.services.length > 3 && (
+              <Text style={[styles.moreServicesInline, { color: theme.text }]}>
+                +{item.services.length - 3} more
+              </Text>
+            )}
+          </View>
+        )}
+
+        <View style={styles.nameContainer}>
+          <Text style={[styles.providerName, { color: theme.text }]}>
+            {item.name}
+          </Text>
+          {/* Availability Badge */}
+          <View
+            style={[
+              styles.availabilityBadge,
+              {
+                backgroundColor:
+                  item.userInfo?.isAvailable !== false ? "#4CAF50" : "#F44336",
+              },
+            ]}
+          >
+            <Ionicons
+              name={
+                item.userInfo?.isAvailable !== false
+                  ? "checkmark-circle"
+                  : "close-circle"
+              }
+              size={10}
+              color="white"
+            />
+            <Text style={styles.availabilityBadgeText}>
+              {item.userInfo?.isAvailable !== false
+                ? "Available"
+                : "Unavailable"}
+            </Text>
+          </View>
+        </View>
+
+        {/* Show provider's services */}
+        <View style={styles.servicesContainer}>
+          {item.services.slice(0, 2).map((service, index) => {
+            const serviceCategoryInfo = getCategoryInfo(service.category);
+            return (
+              <View
+                key={service.id}
+                style={[
+                  styles.serviceBadge,
+                  { backgroundColor: serviceCategoryInfo.color },
+                ]}
+              >
+                <FontAwesome5
+                  name={serviceCategoryInfo.icon}
+                  size={10}
+                  color="white"
+                />
+                <Text style={styles.serviceBadgeText}>{service.name}</Text>
+              </View>
+            );
+          })}
+          {item.services.length > 2 && (
+            <Text style={[styles.moreServices, { color: theme.text }]}>
+              +{item.services.length - 2} more
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.ratingContainer}>
+          <Ionicons name="star" size={16} color="#FFD700" />
+          <Text style={[styles.rating, { color: theme.text }]}>
+            {item.rating}
+          </Text>
+          <Text style={[styles.reviews, { color: theme.text }]}>
+            ({item.reviews} reviews)
+          </Text>
+        </View>
+
+        <Text style={[styles.serviceCount, { color: theme.accent }]}>
+          {item.services.length} service{item.services.length !== 1 ? "s" : ""}{" "}
+          available
         </Text>
       </View>
+      <Ionicons
+        name="chevron-forward"
+        size={20}
+        color={theme.text}
+        style={styles.chevron}
+      />
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            {categoryInfo ? categoryInfo.label : "All Providers"}
+          </Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.accent} />
+          <Text style={[styles.loadingText, { color: theme.text }]}>
+            Loading providers...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
     >
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>
-          {category} Providers
+        <Text style={styles.headerTitle}>
+          {categoryInfo ? categoryInfo.label : "All Providers"}
         </Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <FlatList
-        data={providers}
-        renderItem={renderProvider}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[theme.accent]}
-            tintColor={theme.accent}
-            progressBackgroundColor={theme.card}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: theme.text }]}>
-              No service providers available for this category.
-            </Text>
-          </View>
-        }
-      />
+      {providers.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <FontAwesome5 name="users-slash" size={64} color="#CCCCCC" />
+          <Text style={[styles.emptyText, { color: theme.text }]}>
+            No providers found
+          </Text>
+          <Text style={[styles.emptySubText, { color: theme.text }]}>
+            {categoryInfo
+              ? `No providers are offering ${categoryInfo.label.toLowerCase()} services yet`
+              : "No service providers are available yet"}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={providers}
+          renderItem={renderProvider}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.providersList}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.accent]}
+              tintColor={theme.accent}
+              progressBackgroundColor={theme.card}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -353,61 +259,145 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    backgroundColor: "#6A5ACD",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    paddingVertical: 15,
+    paddingHorizontal: 15,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
+    color: "white",
   },
-  listContainer: {
-    padding: 12,
-    paddingBottom: 20,
+  backButton: {
+    padding: 5,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+  },
+  providersList: {
+    padding: 16,
   },
   providerCard: {
-    flex: 1,
-    margin: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
     borderRadius: 12,
-    padding: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    marginBottom: 12,
     elevation: 2,
-    maxWidth: "47%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   providerImage: {
-    width: "100%",
-    height: 140,
-    borderRadius: 8,
-    marginBottom: 8,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 16,
   },
-  providerName: {
-    fontSize: 14,
-    fontWeight: "600",
+  providerInfo: { flex: 1 },
+  serviceNamesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginBottom: 4,
+  },
+  serviceNameText: { fontSize: 12, fontWeight: "600" },
+  moreServicesInline: { fontSize: 10, fontStyle: "italic", opacity: 0.7 },
+  nameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  providerName: { fontSize: 16, fontWeight: "bold", flex: 1 },
+  availabilityBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  availabilityBadgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+  servicesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  serviceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+    marginBottom: 4,
+  },
+  serviceBadgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "bold",
+    marginLeft: 4,
+  },
+  moreServices: {
+    fontSize: 12,
+    fontStyle: "italic",
+    opacity: 0.7,
   },
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 4,
   },
-  ratingText: {
+  rating: {
+    fontSize: 14,
+    fontWeight: "bold",
+    marginLeft: 4,
+  },
+  reviews: {
     fontSize: 12,
     marginLeft: 4,
+    opacity: 0.7,
+  },
+  serviceCount: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  chevron: {
+    marginLeft: 8,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 50,
+    paddingHorizontal: 30,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 20,
     textAlign: "center",
+  },
+  emptySubText: {
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: "center",
+    opacity: 0.7,
   },
 });
 

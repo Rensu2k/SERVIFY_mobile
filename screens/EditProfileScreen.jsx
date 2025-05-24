@@ -30,9 +30,6 @@ const EditProfileScreen = ({ navigation }) => {
     address: user?.address || "",
     // Service provider specific fields
     serviceDescription: user?.serviceDescription || "",
-    serviceType: user?.serviceType || "",
-    hourlyRate: user?.hourlyRate || "",
-    yearsOfExperience: user?.yearsOfExperience || "",
     isAvailable: user?.isAvailable !== false, // Default to true if not set
   });
 
@@ -55,26 +52,8 @@ const EditProfileScreen = ({ navigation }) => {
       return false;
     }
 
-    // Validate service provider specific fields
-    if (isServiceProvider) {
-      if (!formData.serviceType.trim()) {
-        Alert.alert("Validation Error", "Service type is required");
-        return false;
-      }
-
-      if (formData.hourlyRate && isNaN(parseFloat(formData.hourlyRate))) {
-        Alert.alert("Validation Error", "Hourly rate must be a number");
-        return false;
-      }
-
-      if (
-        formData.yearsOfExperience &&
-        isNaN(parseInt(formData.yearsOfExperience))
-      ) {
-        Alert.alert("Validation Error", "Years of experience must be a number");
-        return false;
-      }
-    }
+    // No additional validation needed for service providers now
+    // Job description is optional
 
     return true;
   };
@@ -85,7 +64,7 @@ const EditProfileScreen = ({ navigation }) => {
     setLoading(true);
     try {
       // Check if username already exists and is not the current user
-      const storedUsers = await AsyncStorage.getItem("registeredUsers");
+      const storedUsers = await AsyncStorage.getItem("servify_users");
       let registeredUsers = storedUsers ? JSON.parse(storedUsers) : [];
 
       const usernameAlreadyExists = registeredUsers.some(
@@ -117,9 +96,6 @@ const EditProfileScreen = ({ navigation }) => {
       // Add service provider specific fields if user is a service provider
       if (isServiceProvider) {
         updatedUserData.serviceDescription = formData.serviceDescription;
-        updatedUserData.serviceType = formData.serviceType;
-        updatedUserData.hourlyRate = formData.hourlyRate;
-        updatedUserData.yearsOfExperience = formData.yearsOfExperience;
         updatedUserData.isAvailable = formData.isAvailable;
       }
 
@@ -245,23 +221,7 @@ const EditProfileScreen = ({ navigation }) => {
 
             <View style={styles.formGroup}>
               <Text style={[styles.label, { color: theme.text }]}>
-                Service Type
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.card, color: theme.text },
-                ]}
-                placeholderTextColor={theme.placeholder}
-                placeholder="e.g. Plumbing, Electrical, Carpentry"
-                value={formData.serviceType}
-                onChangeText={(text) => handleInputChange("serviceType", text)}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>
-                Service Description
+                Job Description
               </Text>
               <TextInput
                 style={[
@@ -269,53 +229,24 @@ const EditProfileScreen = ({ navigation }) => {
                   {
                     backgroundColor: theme.card,
                     color: theme.text,
-                    height: 100,
+                    height: 120,
                   },
                 ]}
                 placeholderTextColor={theme.placeholder}
-                placeholder="Describe your services in detail"
+                placeholder="Describe your professional background, experience, specialties, and what makes your services unique..."
                 value={formData.serviceDescription}
                 onChangeText={(text) =>
                   handleInputChange("serviceDescription", text)
                 }
                 multiline
+                textAlignVertical="top"
               />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>
-                Hourly Rate (₱)
+              <Text
+                style={[styles.helperText, { color: theme.text, opacity: 0.6 }]}
+              >
+                This will be displayed in your profile's "About" section for
+                clients to see
               </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.card, color: theme.text },
-                ]}
-                placeholderTextColor={theme.placeholder}
-                placeholder="e.g. 500"
-                value={formData.hourlyRate}
-                onChangeText={(text) => handleInputChange("hourlyRate", text)}
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>
-                Years of Experience
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.card, color: theme.text },
-                ]}
-                placeholderTextColor={theme.placeholder}
-                placeholder="e.g. 5"
-                value={formData.yearsOfExperience}
-                onChangeText={(text) =>
-                  handleInputChange("yearsOfExperience", text)
-                }
-                keyboardType="numeric"
-              />
             </View>
 
             <View style={styles.formGroup}>
@@ -332,7 +263,9 @@ const EditProfileScreen = ({ navigation }) => {
                   thumbColor={formData.isAvailable ? "#f4f3f4" : "#f4f3f4"}
                 />
               </View>
-              <Text style={styles.helperText}>
+              <Text
+                style={[styles.helperText, { color: theme.text, opacity: 0.6 }]}
+              >
                 Turn off if you're not currently accepting new service requests
               </Text>
             </View>
