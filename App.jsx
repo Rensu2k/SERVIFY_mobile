@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   NavigationContainer,
   DefaultTheme,
@@ -16,12 +16,19 @@ import ServiceProviderDashboard from "./screens/ServiceProviderDashboard";
 import RequestDetailsScreen from "./screens/RequestDetailsScreen";
 import AdminDashboard from "./screens/AdminDashboard";
 import SettingsScreen from "./screens/SettingsScreen";
+import EditProfileScreen from "./screens/EditProfileScreen";
+import EditPasswordScreen from "./screens/EditPasswordScreen";
 import AllProvidersScreen from "./screens/AllProvidersScreen";
 import ProviderDetailsScreen from "./screens/ProviderDetailsScreen";
 import BookingDetailsScreen from "./screens/BookingDetailsScreen";
+import AdminUtils from "./screens/AdminUtils";
+import UserManagement from "./screens/UserManagement";
+import ManageServicesScreen from "./screens/ManageServicesScreen";
+import AvailabilityScreen from "./screens/AvailabilityScreen";
 import { AuthProvider } from "./Components/AuthContext";
 import { ThemeProvider, useTheme } from "./Components/ThemeContext";
 import { BookingsProvider } from "./Components/BookingsContext";
+import { initDatabase } from "./Components/DatabaseService";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -88,6 +95,10 @@ function ServiceProviderStack() {
         initialParams={{ userType: "provider" }}
       />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="EditPassword" component={EditPasswordScreen} />
+      <Stack.Screen name="ManageServices" component={ManageServicesScreen} />
+      <Stack.Screen name="Availability" component={AvailabilityScreen} />
     </Stack.Navigator>
   );
 }
@@ -103,6 +114,10 @@ function AdminStack() {
         initialParams={{ userType: "admin" }}
       />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="EditPassword" component={EditPasswordScreen} />
+      <Stack.Screen name="AdminUtils" component={AdminUtils} />
+      <Stack.Screen name="UserManagement" component={UserManagement} />
     </Stack.Navigator>
   );
 }
@@ -117,6 +132,8 @@ function ClientStack() {
         initialParams={{ userType: "client" }}
       />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="EditPassword" component={EditPasswordScreen} />
       <Stack.Screen name="AllProviders" component={AllProvidersScreen} />
       <Stack.Screen name="ProviderDetails" component={ProviderDetailsScreen} />
       <Stack.Screen name="Bookings" component={BookingsScreen} />
@@ -167,6 +184,20 @@ export default function App() {
 
 function AppContent() {
   const { theme, isDarkMode } = useTheme();
+
+  // Initialize database on app startup
+  useEffect(() => {
+    const setupDatabase = async () => {
+      try {
+        await initDatabase();
+        console.log("Database initialized successfully");
+      } catch (error) {
+        console.error("Error initializing database:", error);
+      }
+    };
+
+    setupDatabase();
+  }, []);
 
   // Create custom theme for react-navigation
   const navigationTheme = {

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { userOperations, initDatabase } from "./DatabaseService";
 
 // Create authentication context
 const AuthContext = createContext();
@@ -21,32 +21,61 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [registeredUsers, setRegisteredUsers] = useState([]);
 
-  // Load user data and registered users from storage on app start
+  // Initialize database and load user data on app start
   useEffect(() => {
-    const loadData = async () => {
+    const initApp = async () => {
       try {
-        // Load current user if remembered
-        const userData = await AsyncStorage.getItem("user");
-        if (userData) {
-          setUser(JSON.parse(userData));
-        }
+        // Initialize database tables
+        await initDatabase();
 
-        // Load registered users
-        const storedUsers = await AsyncStorage.getItem("registeredUsers");
-        if (storedUsers) {
-          setRegisteredUsers(JSON.parse(storedUsers));
-        }
+        // Insert default mock users if they don't exist
+        await ensureDefaultUsers();
+
+        setLoading(false);
       } catch (error) {
-        console.error("Error loading data:", error);
-      } finally {
+        console.error("Error initializing app:", error);
         setLoading(false);
       }
     };
 
-    loadData();
+    initApp();
   }, []);
+
+  // Ensure default users exist in database
+  const ensureDefaultUsers = async () => {
+    try {
+      // Check if provider mock user exists
+      const providerExists = await userOperations.checkUsernameExists(
+        "provider"
+      );
+      if (!providerExists) {
+        await userOperations.registerUser({
+          username: "provider",
+          password: "provider123",
+          userType: "provider",
+          serviceType: "Plumbing",
+          serviceDescription:
+            "Professional plumbing services for homes and businesses.",
+          hourlyRate: "500",
+          yearsOfExperience: "5",
+          isAvailable: true,
+        });
+      }
+
+      // Check if client mock user exists
+      const clientExists = await userOperations.checkUsernameExists("client");
+      if (!clientExists) {
+        await userOperations.registerUser({
+          username: "client",
+          password: "client123",
+          userType: "client",
+        });
+      }
+    } catch (error) {
+      console.error("Error ensuring default users:", error);
+    }
+  };
 
   // Login function
   const login = async (userData, rememberMe = false) => {
@@ -68,11 +97,6 @@ export const AuthProvider = ({ children }) => {
           // Admin login successful
           const adminUser = { ...userData, isAdmin: true };
           setUser(adminUser);
-
-          if (rememberMe) {
-            await AsyncStorage.setItem("user", JSON.stringify(adminUser));
-          }
-
           return { success: true };
         } else {
           // Admin login failed
@@ -84,47 +108,24 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      // Simulate stored default users (in a real app, this would be in a database)
-      const mockedUsers = {
-        provider: { username: "provider", password: "provider123" },
-        client: { username: "client", password: "client123" },
-      };
-
-      // Check default mock users first
-      const mockedUser = mockedUsers[userData.userType];
-      if (
-        mockedUser &&
-        mockedUser.username === userData.username &&
-        mockedUser.password === userData.password
-      ) {
-        // Default user login successful
-        setUser(userData);
-
-        // If remember me is checked, store user data
-        if (rememberMe) {
-          await AsyncStorage.setItem("user", JSON.stringify(userData));
-        }
-
-        return { success: true };
-      }
-
-      // Check against registered users from AsyncStorage
-      const matchedUser = registeredUsers.find(
-        (user) =>
-          user.username === userData.username &&
-          user.password === userData.password &&
-          user.userType === userData.userType
+      // Query database for user credentials
+      const userFromDb = await userOperations.loginUser(
+        userData.username,
+        userData.password
       );
 
-      if (matchedUser) {
-        // Registered user login successful
-        setUser(userData);
-
-        // If remember me is checked, store user data
-        if (rememberMe) {
-          await AsyncStorage.setItem("user", JSON.stringify(userData));
+      if (userFromDb && userFromDb.userType === userData.userType) {
+        // Check if user is suspended
+        if (userFromDb.suspended) {
+          return {
+            success: false,
+            error:
+              "Your account has been suspended. Please contact admin for assistance.",
+          };
         }
 
+        // Login successful
+        setUser(userFromDb);
         return { success: true };
       }
 
@@ -151,39 +152,20 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // Check if username already exists for this user type
-      const usernameExists = registeredUsers.some(
-        (user) =>
-          user.username === userData.username &&
-          user.userType === userData.userType
+      // Check if username already exists
+      const usernameExists = await userOperations.checkUsernameExists(
+        userData.username
       );
 
-      // Also check against default mock users
-      const mockedUsers = {
-        provider: { username: "provider", password: "provider123" },
-        client: { username: "client", password: "client123" },
-      };
-
-      const defaultUserExists =
-        mockedUsers[userData.userType] &&
-        mockedUsers[userData.userType].username === userData.username;
-
-      if (usernameExists || defaultUserExists) {
+      if (usernameExists) {
         return {
           success: false,
-          error: "Username already exists for this user type",
+          error: "Username already exists",
         };
       }
 
-      // Store the new user
-      const updatedUsers = [...registeredUsers, userData];
-      setRegisteredUsers(updatedUsers);
-
-      // Save to AsyncStorage
-      await AsyncStorage.setItem(
-        "registeredUsers",
-        JSON.stringify(updatedUsers)
-      );
+      // Register the new user in database
+      await userOperations.registerUser(userData);
 
       return { success: true };
     } catch (error) {
@@ -192,11 +174,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Update user profile
+  const updateUser = async (updatedUserData) => {
+    try {
+      // Update the user in database
+      const success = await userOperations.updateUser(updatedUserData);
+
+      if (success) {
+        // Update the user in state
+        setUser(updatedUserData);
+        return { success: true };
+      }
+
+      return { success: false, error: "Failed to update user" };
+    } catch (error) {
+      console.error("Error updating user:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
   // Logout function
   const logout = async () => {
     try {
+      // Simply clear the user from state
       setUser(null);
-      await AsyncStorage.removeItem("user");
       return { success: true };
     } catch (error) {
       console.error("Logout error:", error);
@@ -204,17 +205,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Values to be provided by the context
-  const value = {
+  // Expose the context value
+  const authContextValue = {
     user,
     loading,
     login,
     signup,
     logout,
+    updateUser,
     isAuthenticated: !!user,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={authContextValue}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export default AuthContext;

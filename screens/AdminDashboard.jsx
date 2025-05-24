@@ -108,9 +108,12 @@ const AdminDashboard = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsContainer}>
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="person-add" size={24} color="white" />
-              <Text style={styles.actionText}>Add User</Text>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => navigation.navigate("UserManagement")}
+            >
+              <Ionicons name="people" size={24} color="white" />
+              <Text style={styles.actionText}>User Management</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionButton}>
@@ -123,9 +126,20 @@ const AdminDashboard = ({ navigation }) => {
               <Text style={styles.actionText}>Reports</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => navigation.navigate("Settings")}
+            >
               <Ionicons name="settings" size={24} color="white" />
               <Text style={styles.actionText}>Settings</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: "#ff4d4d" }]}
+              onPress={() => navigation.navigate("AdminUtils")}
+            >
+              <Ionicons name="shield" size={24} color="white" />
+              <Text style={styles.actionText}>Advanced Utilities</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -14,11 +14,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Components/ThemeContext";
 import { useBookings } from "../Components/BookingsContext";
+import { useAuth } from "../Components/AuthContext";
 
 const ProviderDetailsScreen = ({ route, navigation }) => {
   const { provider } = route.params;
   const { theme } = useTheme();
   const { addBooking } = useBookings();
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
@@ -53,13 +55,13 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
   const services = [
     {
       id: "s1",
-      name: `Regular ${provider.category} Service`,
+      name: `Regular Service`,
       price: "₱350",
       description: "Standard service package",
     },
     {
       id: "s2",
-      name: `Premium ${provider.category} Service`,
+      name: `Premium Service`,
       price: "₱650",
       description: "Premium service with additional features",
     },
@@ -90,6 +92,11 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
   ];
 
   const handleBooking = () => {
+    if (!user) {
+      Alert.alert("Error", "You need to be logged in to make a booking");
+      return;
+    }
+
     if (!selectedDate || !selectedTime) {
       Alert.alert("Error", "Please select a date and time for your booking");
       return;
@@ -121,10 +128,16 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
               date: selectedDate,
               time: selectedTime,
               status: "Confirmed",
-              createdAt: new Date(),
+              createdAt: new Date().toISOString(),
+              // Add client information
+              clientId: user.username,
+              clientType: user.userType,
+              clientName: user.fullName || user.username,
+              clientEmail: user.email,
+              clientPhone: user.phone,
             };
 
-            // Add booking to storage
+            // Add booking using context which now uses AsyncStorage
             const success = await addBooking(bookingDetails);
 
             if (success) {
@@ -132,8 +145,8 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
                 "Booking Successful",
                 "Your booking has been confirmed. The service provider will contact you soon."
               );
-              // Navigate to Bookings tab
-              navigation.navigate("Bookings");
+              // Navigate to Bookings tab within the ClientTabs
+              navigation.navigate("ClientTabs", { screen: "Bookings" });
             } else {
               Alert.alert(
                 "Booking Failed",

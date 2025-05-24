@@ -219,23 +219,28 @@ const ServiceProviderDashboard = ({ navigation }) => {
   const renderSettingsContent = () => (
     <View style={styles.settingsContainer}>
       <View style={styles.profileSection}>
-        <Image
-          source={require("../assets/images/Profile.jpg")}
-          style={styles.profileImage}
-        />
+        <View style={styles.profileImageContainer}>
+          <Image
+            source={require("../assets/images/Profile.jpg")}
+            style={styles.profileImage}
+          />
+          <TouchableOpacity
+            style={styles.editProfileButton}
+            onPress={() => navigation.navigate("EditProfile")}
+          >
+            <Ionicons name="pencil" size={18} color="white" />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.profileName}>
           {user?.username || "Service Provider"}
         </Text>
         <Text style={styles.profileEmail}>Service Provider Account</Text>
       </View>
 
-      <TouchableOpacity style={styles.settingItem}>
-        <FontAwesome5 name="user-edit" size={20} color="#6A5ACD" />
-        <Text style={styles.settingText}>Edit Profile</Text>
-        <MaterialIcons name="chevron-right" size={24} color="#757575" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingItem}>
+      <TouchableOpacity
+        style={styles.settingItem}
+        onPress={() => navigation.navigate("ManageServices")}
+      >
         <FontAwesome5 name="briefcase" size={20} color="#6A5ACD" />
         <Text style={styles.settingText}>Manage Services</Text>
         <MaterialIcons name="chevron-right" size={24} color="#757575" />
@@ -247,7 +252,10 @@ const ServiceProviderDashboard = ({ navigation }) => {
         <MaterialIcons name="chevron-right" size={24} color="#757575" />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.settingItem}>
+      <TouchableOpacity
+        style={styles.settingItem}
+        onPress={() => navigation.navigate("Availability")}
+      >
         <FontAwesome5 name="calendar-alt" size={20} color="#6A5ACD" />
         <Text style={styles.settingText}>Availability</Text>
         <MaterialIcons name="chevron-right" size={24} color="#757575" />
@@ -256,6 +264,15 @@ const ServiceProviderDashboard = ({ navigation }) => {
       <TouchableOpacity style={styles.settingItem}>
         <FontAwesome5 name="credit-card" size={20} color="#6A5ACD" />
         <Text style={styles.settingText}>Payment Methods</Text>
+        <MaterialIcons name="chevron-right" size={24} color="#757575" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.settingItem}
+        onPress={() => navigation.navigate("EditProfile")}
+      >
+        <FontAwesome5 name="user-edit" size={20} color="#6A5ACD" />
+        <Text style={styles.settingText}>Edit Profile</Text>
         <MaterialIcons name="chevron-right" size={24} color="#757575" />
       </TouchableOpacity>
 
@@ -526,6 +543,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
+  profileImageContainer: {
+    position: "relative",
+  },
   profileImage: {
     width: 100,
     height: 100,
@@ -540,6 +560,14 @@ const styles = StyleSheet.create({
   profileEmail: {
     fontSize: 14,
     color: "#757575",
+  },
+  editProfileButton: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    padding: 5,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   settingItem: {
     flexDirection: "row",

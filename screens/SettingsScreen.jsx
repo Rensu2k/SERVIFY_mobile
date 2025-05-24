@@ -14,14 +14,30 @@ import { useTheme } from "../Components/ThemeContext";
 const SettingsScreen = ({ navigation }) => {
   const { isDarkMode, toggleTheme, theme } = useTheme();
 
+  const handleNavigation = (screenName) => {
+    navigation.navigate(screenName);
+  };
+
   const settingsOptions = [
     {
       title: "Account",
       icon: "person-circle-outline",
       actions: [
-        { name: "Edit Profile", icon: "create-outline" },
-        { name: "Change Password", icon: "key-outline" },
-        { name: "Privacy Settings", icon: "shield-checkmark-outline" },
+        {
+          name: "Edit Profile",
+          icon: "create-outline",
+          onPress: () => handleNavigation("EditProfile"),
+        },
+        {
+          name: "Change Password",
+          icon: "key-outline",
+          onPress: () => handleNavigation("EditPassword"),
+        },
+        {
+          name: "Privacy Settings",
+          icon: "shield-checkmark-outline",
+          onPress: () => {},
+        },
       ],
     },
     {
@@ -35,26 +51,59 @@ const SettingsScreen = ({ navigation }) => {
           toggleValue: isDarkMode,
           onToggle: toggleTheme,
         },
-        { name: "Notifications", icon: "notifications-outline" },
-        { name: "Language", icon: "language-outline", value: "English" },
+        {
+          name: "Notifications",
+          icon: "notifications-outline",
+          onPress: () => {},
+        },
+        {
+          name: "Language",
+          icon: "language-outline",
+          value: "English",
+          onPress: () => {},
+        },
       ],
     },
     {
       title: "Help & Support",
       icon: "help-circle-outline",
       actions: [
-        { name: "Contact Us", icon: "mail-outline" },
-        { name: "FAQ", icon: "help-outline" },
-        { name: "Report a Problem", icon: "warning-outline" },
+        {
+          name: "Contact Us",
+          icon: "mail-outline",
+          onPress: () => {},
+        },
+        {
+          name: "FAQ",
+          icon: "help-outline",
+          onPress: () => {},
+        },
+        {
+          name: "Report a Problem",
+          icon: "warning-outline",
+          onPress: () => {},
+        },
       ],
     },
     {
       title: "About",
       icon: "information-circle-outline",
       actions: [
-        { name: "App Version", icon: "code-outline", value: "1.0.0" },
-        { name: "Terms of Service", icon: "document-text-outline" },
-        { name: "Privacy Policy", icon: "shield-outline" },
+        {
+          name: "App Version",
+          icon: "code-outline",
+          value: "1.0.0",
+        },
+        {
+          name: "Terms of Service",
+          icon: "document-text-outline",
+          onPress: () => {},
+        },
+        {
+          name: "Privacy Policy",
+          icon: "shield-outline",
+          onPress: () => {},
+        },
       ],
     },
   ];
@@ -96,7 +145,7 @@ const SettingsScreen = ({ navigation }) => {
                       borderBottomColor: theme.border,
                     },
                   ]}
-                  onPress={action.isToggle ? undefined : () => {}}
+                  onPress={action.isToggle ? undefined : action.onPress}
                 >
                   <View style={styles.settingLeft}>
                     <Ionicons

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Text,
   StyleSheet,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BannerSlider from "../Components/BannerSlider";
@@ -18,6 +19,7 @@ import { useTheme } from "../Components/ThemeContext";
 const HomeScreenContent = ({ navigation }) => {
   const { theme } = useTheme();
   const [activeCategory, setActiveCategory] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleCategoryPress = (categoryName) => {
     setActiveCategory(categoryName);
@@ -26,6 +28,15 @@ const HomeScreenContent = ({ navigation }) => {
 
   const handleSeeAll = (category) => {
     navigation.navigate("AllProviders", { category });
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // In a real app, you would fetch fresh data here
+    // For this demo, we'll just simulate a delay
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
   };
 
   return (
@@ -37,7 +48,18 @@ const HomeScreenContent = ({ navigation }) => {
           theme.background === "#FFFFFF" ? "dark-content" : "light-content"
         }
       />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.accent]}
+            tintColor={theme.accent}
+            progressBackgroundColor={theme.card}
+          />
+        }
+      >
         <View
           style={[
             styles.searchContainer,

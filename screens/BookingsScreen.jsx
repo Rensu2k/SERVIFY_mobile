@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { SafeAreaView } from "react-native";
@@ -19,6 +20,7 @@ const Bookings = ({ route, navigation }) => {
   const { theme } = useTheme();
   const { bookings, loading, refreshBookings } = useBookings();
   const isFocused = useIsFocused();
+  const [refreshing, setRefreshing] = useState(false);
 
   // Refresh bookings when screen is focused
   useEffect(() => {
@@ -27,8 +29,14 @@ const Bookings = ({ route, navigation }) => {
     }
   }, [isFocused]);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshBookings();
+    setRefreshing(false);
+  };
+
   const renderBookings = (list) => {
-    if (loading) {
+    if (loading && !refreshing) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.accent} />
@@ -126,6 +134,15 @@ const Bookings = ({ route, navigation }) => {
     <ScrollView
       contentContainerStyle={styles.scrollContent}
       style={{ backgroundColor: theme.background }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[theme.accent]}
+          tintColor={theme.accent}
+          progressBackgroundColor={theme.card}
+        />
+      }
     >
       {renderBookings(bookings.pending)}
     </ScrollView>
@@ -135,6 +152,15 @@ const Bookings = ({ route, navigation }) => {
     <ScrollView
       contentContainerStyle={styles.scrollContent}
       style={{ backgroundColor: theme.background }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[theme.accent]}
+          tintColor={theme.accent}
+          progressBackgroundColor={theme.card}
+        />
+      }
     >
       {renderBookings(bookings.cancelled)}
     </ScrollView>
@@ -144,6 +170,15 @@ const Bookings = ({ route, navigation }) => {
     <ScrollView
       contentContainerStyle={styles.scrollContent}
       style={{ backgroundColor: theme.background }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[theme.accent]}
+          tintColor={theme.accent}
+          progressBackgroundColor={theme.card}
+        />
+      }
     >
       {renderBookings(bookings.completed)}
     </ScrollView>

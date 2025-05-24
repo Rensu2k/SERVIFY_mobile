@@ -1,11 +1,13 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { bookingOperations } from "./DatabaseService";
+import { useAuth } from "./AuthContext";
 
 const BookingsContext = createContext();
 
 export const useBookings = () => useContext(BookingsContext);
 
 export const BookingsProvider = ({ children }) => {
+  const { user } = useAuth();
   const [bookings, setBookings] = useState({
     pending: [],
     cancelled: [],
@@ -13,19 +15,41 @@ export const BookingsProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Load bookings from AsyncStorage on component mount
+  // Load bookings from database when user changes
   useEffect(() => {
-    loadBookings();
-  }, []);
+    if (user) {
+      loadBookings();
+    } else {
+      // Clear bookings when user logs out
+      setBookings({
+        pending: [],
+        cancelled: [],
+        completed: [],
+      });
+    }
+  }, [user]);
 
-  // Load all bookings from storage
+  // Load user-specific bookings from database
   const loadBookings = async () => {
+    if (!user) return;
+
     try {
       setLoading(true);
-      const storedBookings = await AsyncStorage.getItem("bookings");
 
-      if (storedBookings) {
-        setBookings(JSON.parse(storedBookings));
+      // Get all bookings for current user
+      const userBookings = await bookingOperations.getAllBookings(
+        user.username
+      );
+
+      if (userBookings) {
+        setBookings(userBookings);
+      } else {
+        // Initialize with empty categories if no bookings found
+        setBookings({
+          pending: [],
+          cancelled: [],
+          completed: [],
+        });
       }
     } catch (error) {
       console.error("Error loading bookings:", error);
@@ -34,18 +58,10 @@ export const BookingsProvider = ({ children }) => {
     }
   };
 
-  // Save bookings to AsyncStorage
-  const saveBookings = async (updatedBookings) => {
-    try {
-      await AsyncStorage.setItem("bookings", JSON.stringify(updatedBookings));
-      setBookings(updatedBookings);
-    } catch (error) {
-      console.error("Error saving bookings:", error);
-    }
-  };
-
   // Add a new booking
   const addBooking = async (newBooking) => {
+    if (!user) return false;
+
     try {
       const formattedBooking = {
         id: newBooking.id,
@@ -56,16 +72,24 @@ export const BookingsProvider = ({ children }) => {
         date: `${newBooking.date.toDateString()} at ${newBooking.time}`,
         image: newBooking.provider.image,
         details: newBooking, // Store the full booking details
-        createdAt: newBooking.createdAt,
+        createdAt: new Date().toISOString(),
+        userId: user.username, // Associate with current user
+        userType: user.userType,
       };
 
-      const updatedBookings = {
-        ...bookings,
-        pending: [formattedBooking, ...bookings.pending],
-      };
+      // Add to database
+      const success = await bookingOperations.addBooking(formattedBooking);
 
-      await saveBookings(updatedBookings);
-      return true;
+      if (success) {
+        // Update local state for immediate UI update
+        const updatedBookings = {
+          ...bookings,
+          pending: [formattedBooking, ...bookings.pending],
+        };
+        setBookings(updatedBookings);
+      }
+
+      return success;
     } catch (error) {
       console.error("Error adding booking:", error);
       return false;
@@ -74,9 +98,12 @@ export const BookingsProvider = ({ children }) => {
 
   // Update booking status
   const updateBookingStatus = async (bookingId, newStatus) => {
+    if (!user) return false;
+
     try {
       let updatedBookings = { ...bookings };
       let bookingFound = false;
+      let bookingToUpdate = null;
 
       // Find the booking in any category
       for (const category of Object.keys(updatedBookings)) {
@@ -85,7 +112,7 @@ export const BookingsProvider = ({ children }) => {
         );
 
         if (index !== -1) {
-          const booking = { ...updatedBookings[category][index] };
+          bookingToUpdate = { ...updatedBookings[category][index] };
 
           // Remove from current category
           updatedBookings[category] = updatedBookings[category].filter(
@@ -93,27 +120,44 @@ export const BookingsProvider = ({ children }) => {
           );
 
           // Update status and color
-          booking.status = newStatus;
+          bookingToUpdate.status = newStatus;
 
           // Set color based on status
+          let newColor;
           if (newStatus === "Completed") {
-            booking.color = "green";
-            updatedBookings.completed = [booking, ...updatedBookings.completed];
+            newColor = "green";
+            updatedBookings.completed = [
+              bookingToUpdate,
+              ...updatedBookings.completed,
+            ];
           } else if (newStatus === "Cancelled") {
-            booking.color = "red";
-            updatedBookings.cancelled = [booking, ...updatedBookings.cancelled];
+            newColor = "red";
+            updatedBookings.cancelled = [
+              bookingToUpdate,
+              ...updatedBookings.cancelled,
+            ];
           } else {
-            booking.color = newStatus === "Accepted" ? "green" : "#F5A623";
-            updatedBookings.pending = [booking, ...updatedBookings.pending];
+            newColor = newStatus === "Accepted" ? "green" : "#F5A623";
+            updatedBookings.pending = [
+              bookingToUpdate,
+              ...updatedBookings.pending,
+            ];
           }
 
           bookingFound = true;
+
+          // Update in database
+          await bookingOperations.updateBookingStatus(
+            bookingId,
+            newStatus,
+            newColor
+          );
           break;
         }
       }
 
       if (bookingFound) {
-        await saveBookings(updatedBookings);
+        setBookings(updatedBookings);
         return true;
       }
       return false;
@@ -125,25 +169,31 @@ export const BookingsProvider = ({ children }) => {
 
   // Delete a booking
   const deleteBooking = async (bookingId) => {
+    if (!user) return false;
+
     try {
-      let updatedBookings = { ...bookings };
-      let bookingFound = false;
+      // Delete from database
+      const success = await bookingOperations.deleteBooking(bookingId);
 
-      // Find and remove the booking from any category
-      for (const category of Object.keys(updatedBookings)) {
-        if (
-          updatedBookings[category].some((booking) => booking.id === bookingId)
-        ) {
-          updatedBookings[category] = updatedBookings[category].filter(
-            (b) => b.id !== bookingId
-          );
-          bookingFound = true;
-          break;
+      if (success) {
+        // Update local state for immediate UI update
+        let updatedBookings = { ...bookings };
+
+        // Remove from any category
+        for (const category of Object.keys(updatedBookings)) {
+          if (
+            updatedBookings[category].some(
+              (booking) => booking.id === bookingId
+            )
+          ) {
+            updatedBookings[category] = updatedBookings[category].filter(
+              (b) => b.id !== bookingId
+            );
+            break;
+          }
         }
-      }
 
-      if (bookingFound) {
-        await saveBookings(updatedBookings);
+        setBookings(updatedBookings);
         return true;
       }
       return false;

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   SafeAreaView,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Components/ThemeContext";
@@ -270,11 +271,21 @@ const providersByCategory = {
 const AllProvidersScreen = ({ route, navigation }) => {
   const { category } = route.params;
   const { theme } = useTheme();
+  const [refreshing, setRefreshing] = useState(false);
 
   const providers = providersByCategory[category] || [];
 
   const handleProviderPress = (provider) => {
     navigation.navigate("ProviderDetails", { provider });
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // In a real app, you would fetch fresh data here
+    // For this demo, we'll just simulate a delay
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
   };
 
   const renderProvider = ({ item }) => (
@@ -316,6 +327,15 @@ const AllProvidersScreen = ({ route, navigation }) => {
         numColumns={2}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.accent]}
+            tintColor={theme.accent}
+            progressBackgroundColor={theme.card}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: theme.text }]}>
