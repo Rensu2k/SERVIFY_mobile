@@ -15,6 +15,11 @@ const ServiceProvider = ({
 }) => {
   const navigation = useNavigation();
 
+  // Debug logging
+  console.log("ServiceProvider Debug:");
+  console.log("Provider:", JSON.stringify(provider, null, 2));
+  console.log("Image prop:", image);
+
   const handlePress = () => {
     // Create a provider object with all necessary data
     const providerData = {
@@ -54,7 +59,23 @@ const ServiceProvider = ({
   return (
     <TouchableOpacity style={styles.providerCard} onPress={handlePress}>
       <View style={styles.imageContainer}>
-        <Image source={image} style={styles.providerImage} />
+        <Image
+          source={
+            provider?.profileImage && provider.profileImage.trim()
+              ? { uri: provider.profileImage }
+              : provider?.userInfo?.profileImage &&
+                provider.userInfo.profileImage.trim()
+              ? { uri: provider.userInfo.profileImage }
+              : image || require("../assets/images/Profile.jpg")
+          }
+          style={styles.providerImage}
+          onError={(error) => {
+            console.log(
+              "ServiceProvider image error:",
+              error.nativeEvent.error
+            );
+          }}
+        />
         <View
           style={[
             styles.availabilityBadge,

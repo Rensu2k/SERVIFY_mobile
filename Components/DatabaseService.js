@@ -26,6 +26,75 @@ export const initDatabase = async () => {
   }
 };
 
+// Helper function to update bookings when username changes
+const updateBookingsForUsernameChange = async (
+  oldUsername,
+  newUsername,
+  userType
+) => {
+  try {
+    const bookingsJson = await AsyncStorage.getItem(BOOKINGS_STORAGE_KEY);
+    const bookings = bookingsJson ? JSON.parse(bookingsJson) : [];
+
+    let updated = false;
+    const updatedBookings = bookings.map((booking) => {
+      let updatedBooking = { ...booking };
+
+      // Parse details if it's a string
+      const details =
+        typeof booking.details === "string"
+          ? JSON.parse(booking.details)
+          : booking.details;
+
+      // Update client bookings (userId matches)
+      if (userType === "client" && booking.userId === oldUsername) {
+        updatedBooking.userId = newUsername;
+        updated = true;
+      }
+
+      // Update provider references in booking details
+      if (userType === "provider" && details?.provider) {
+        if (
+          details.provider.username === oldUsername ||
+          details.provider.name === oldUsername ||
+          details.provider.id === oldUsername
+        ) {
+          details.provider.username = newUsername;
+          if (details.provider.name === oldUsername) {
+            details.provider.name = newUsername;
+          }
+          if (details.provider.id === oldUsername) {
+            details.provider.id = newUsername;
+          }
+          updatedBooking.details = details;
+          updated = true;
+        }
+      }
+
+      return updatedBooking;
+    });
+
+    // Save updated bookings if any changes were made
+    if (updated) {
+      await AsyncStorage.setItem(
+        BOOKINGS_STORAGE_KEY,
+        JSON.stringify(updatedBookings)
+      );
+      console.log(
+        "Updated bookings for username change:",
+        oldUsername,
+        "->",
+        newUsername
+      );
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error updating bookings for username change:", error);
+    return false;
+  }
+};
+
 // User-related storage operations
 export const userOperations = {
   // Register a new user
@@ -178,22 +247,41 @@ export const userOperations = {
   },
 
   // Update user information
-  updateUser: async (user) => {
+  updateUser: async (user, originalUsername = null) => {
     try {
       // Get users
       const usersJson = await AsyncStorage.getItem(USERS_STORAGE_KEY);
       const users = usersJson ? JSON.parse(usersJson) : [];
 
-      // Find and update user
-      const updatedUsers = users.map((u) =>
-        u.username === user.username ? { ...u, ...user } : u
+      // Use original username if provided (for username changes), otherwise use current username
+      const searchUsername = originalUsername || user.username;
+
+      // Find user index
+      const userIndex = users.findIndex(
+        (u) => u.username === searchUsername && u.userType === user.userType
       );
 
+      if (userIndex === -1) {
+        console.error("User not found for update:", searchUsername);
+        return false;
+      }
+
+      // Update user at the found index
+      users[userIndex] = { ...users[userIndex], ...user };
+
       // Save updated users
-      await AsyncStorage.setItem(
-        USERS_STORAGE_KEY,
-        JSON.stringify(updatedUsers)
-      );
+      await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+
+      // If username changed, update related bookings
+      if (originalUsername && originalUsername !== user.username) {
+        await updateBookingsForUsernameChange(
+          originalUsername,
+          user.username,
+          user.userType
+        );
+      }
+
+      console.log("User updated successfully:", user.username);
       return true;
     } catch (error) {
       console.error("Error updating user:", error);
@@ -272,13 +360,22 @@ export const bookingOperations = {
       const groupedBookings = {
         pending: userBookings.filter(
           (booking) =>
-            booking.status !== "Completed" && booking.status !== "Cancelled"
+            booking.status !== "Completed" &&
+            booking.status !== "Cancelled" &&
+            booking.status !== "Paid" &&
+            booking.status !== "Pending Confirmation" &&
+            booking.status !== "Declined"
         ),
         completed: userBookings.filter(
-          (booking) => booking.status === "Completed"
+          (booking) =>
+            booking.status === "Completed" ||
+            booking.status === "Pending Payment" ||
+            booking.status === "Pending Confirmation" ||
+            booking.status === "Paid"
         ),
         cancelled: userBookings.filter(
-          (booking) => booking.status === "Cancelled"
+          (booking) =>
+            booking.status === "Cancelled" || booking.status === "Declined"
         ),
       };
 
@@ -290,18 +387,40 @@ export const bookingOperations = {
   },
 
   // Update booking status
-  updateBookingStatus: async (bookingId, newStatus, newColor) => {
+  updateBookingStatus: async (
+    bookingId,
+    newStatus,
+    newColor,
+    paymentMethod = null
+  ) => {
     try {
       // Get all bookings
       const bookingsJson = await AsyncStorage.getItem(BOOKINGS_STORAGE_KEY);
       const bookings = bookingsJson ? JSON.parse(bookingsJson) : [];
 
       // Find and update booking
-      const updatedBookings = bookings.map((booking) =>
-        booking.id === bookingId
-          ? { ...booking, status: newStatus, color: newColor }
-          : booking
-      );
+      const updatedBookings = bookings.map((booking) => {
+        if (booking.id === bookingId) {
+          const updatedBooking = {
+            ...booking,
+            status: newStatus,
+            color: newColor,
+          };
+
+          // Store payment method if provided
+          if (paymentMethod) {
+            const details =
+              typeof booking.details === "string"
+                ? JSON.parse(booking.details)
+                : booking.details || {};
+            details.paymentMethod = paymentMethod;
+            updatedBooking.details = details;
+          }
+
+          return updatedBooking;
+        }
+        return booking;
+      });
 
       // Check if booking was found and updated
       const wasUpdated =
@@ -341,6 +460,80 @@ export const bookingOperations = {
       return wasDeleted;
     } catch (error) {
       console.error("Error deleting booking:", error);
+      throw error;
+    }
+  },
+
+  // Get all bookings for a service provider (where they are the provider)
+  getProviderBookings: async (providerId) => {
+    try {
+      // Get all bookings
+      const bookingsJson = await AsyncStorage.getItem(BOOKINGS_STORAGE_KEY);
+      const bookings = bookingsJson ? JSON.parse(bookingsJson) : [];
+
+      // Filter bookings where the current user is the provider
+      const providerBookings = bookings
+        .filter((booking) => {
+          // Parse details if it's a string
+          const details =
+            typeof booking.details === "string"
+              ? JSON.parse(booking.details)
+              : booking.details;
+
+          // Check if the provider matches
+          return (
+            details?.provider?.id === providerId ||
+            details?.provider?.name === providerId ||
+            details?.provider?.username === providerId
+          );
+        })
+        .map((booking) => ({
+          ...booking,
+          details:
+            typeof booking.details === "string"
+              ? JSON.parse(booking.details)
+              : booking.details,
+        }))
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      // Group bookings by status
+      const groupedBookings = {
+        pending: providerBookings.filter(
+          (booking) =>
+            booking.status !== "Completed" &&
+            booking.status !== "Cancelled" &&
+            booking.status !== "Paid" &&
+            booking.status !== "Pending Confirmation" &&
+            booking.status !== "Declined"
+        ),
+        completed: providerBookings.filter(
+          (booking) =>
+            booking.status === "Completed" ||
+            booking.status === "Pending Payment" ||
+            booking.status === "Pending Confirmation" ||
+            booking.status === "Paid"
+        ),
+        cancelled: providerBookings.filter(
+          (booking) =>
+            booking.status === "Cancelled" || booking.status === "Declined"
+        ),
+      };
+
+      return groupedBookings;
+    } catch (error) {
+      console.error("Error getting provider bookings:", error);
+      throw error;
+    }
+  },
+
+  // Clear all bookings (for testing/reset purposes)
+  clearAllBookings: async () => {
+    try {
+      await AsyncStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify([]));
+      console.log("All bookings cleared successfully");
+      return true;
+    } catch (error) {
+      console.error("Error clearing all bookings:", error);
       throw error;
     }
   },

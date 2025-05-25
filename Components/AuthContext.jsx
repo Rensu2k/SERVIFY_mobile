@@ -177,8 +177,14 @@ export const AuthProvider = ({ children }) => {
   // Update user profile
   const updateUser = async (updatedUserData) => {
     try {
+      // Store the original username in case it's being changed
+      const originalUsername = user.username;
+
       // Update the user in database
-      const success = await userOperations.updateUser(updatedUserData);
+      const success = await userOperations.updateUser(
+        updatedUserData,
+        originalUsername
+      );
 
       if (success) {
         // Update the user in state

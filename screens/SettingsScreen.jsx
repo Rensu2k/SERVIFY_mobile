@@ -6,13 +6,16 @@ import {
   TouchableOpacity,
   Switch,
   ScrollView,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../Components/ThemeContext";
+import { useAuth } from "../Components/AuthContext";
 
 const SettingsScreen = ({ navigation }) => {
   const { isDarkMode, toggleTheme, theme } = useTheme();
+  const { user } = useAuth();
 
   const handleNavigation = (screenName) => {
     navigation.navigate(screenName);
@@ -123,6 +126,36 @@ const SettingsScreen = ({ navigation }) => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* User Profile Section */}
+        <TouchableOpacity
+          style={[styles.profileSection, { backgroundColor: theme.card }]}
+          onPress={() => handleNavigation("EditProfile")}
+        >
+          <Image
+            source={
+              user?.profileImage
+                ? { uri: user.profileImage }
+                : require("../assets/images/Profile.jpg")
+            }
+            style={styles.profileImage}
+          />
+          <View style={styles.profileInfo}>
+            <Text style={[styles.profileName, { color: theme.text }]}>
+              {user?.fullName || user?.username || "User"}
+            </Text>
+            <Text
+              style={[styles.profileEmail, { color: theme.text, opacity: 0.7 }]}
+            >
+              {user?.email ||
+                `${
+                  user?.userType?.charAt(0).toUpperCase() +
+                  user?.userType?.slice(1)
+                } Account`}
+            </Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={theme.text} />
+        </TouchableOpacity>
+
         {settingsOptions.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -250,6 +283,37 @@ const styles = StyleSheet.create({
   settingValue: {
     fontSize: 14,
     marginRight: 8,
+  },
+  profileSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 10,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  profileImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 16,
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  profileEmail: {
+    fontSize: 14,
   },
 });
 

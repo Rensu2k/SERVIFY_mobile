@@ -7,6 +7,15 @@ import { getCategoryInfo } from "./ServicesHelper";
 const ServiceCard = ({ service, provider, theme = {} }) => {
   const navigation = useNavigation();
 
+  // Debug logging
+  console.log("ServiceCard Debug:");
+  console.log("Provider:", JSON.stringify(provider, null, 2));
+  console.log("Provider profileImage:", provider?.profileImage);
+  console.log(
+    "Provider userInfo profileImage:",
+    provider?.userInfo?.profileImage
+  );
+
   const handlePress = () => {
     // Navigate to provider details screen with the specific service context
     navigation.navigate("ProviderDetails", {
@@ -25,8 +34,18 @@ const ServiceCard = ({ service, provider, theme = {} }) => {
     >
       <View style={styles.imageContainer}>
         <Image
-          source={require("../assets/images/Profile.jpg")}
+          source={
+            provider?.profileImage && provider.profileImage.trim()
+              ? { uri: provider.profileImage }
+              : provider?.userInfo?.profileImage &&
+                provider.userInfo.profileImage.trim()
+              ? { uri: provider.userInfo.profileImage }
+              : require("../assets/images/Profile.jpg")
+          }
           style={styles.serviceImage}
+          onError={(error) => {
+            console.log("Service card image error:", error.nativeEvent.error);
+          }}
         />
 
         {/* Category Icon Badge */}

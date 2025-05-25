@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../Components/AuthContext";
+import ClearBookingsUtil from "../Components/ClearBookingsUtil";
 
 const AdminDashboard = ({ navigation }) => {
   const { logout } = useAuth();
@@ -151,6 +152,14 @@ const AdminDashboard = ({ navigation }) => {
             {recentActivities.map(renderActivityItem)}
           </View>
         </View>
+
+        {/* Database Management */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Database Management</Text>
+          <View style={styles.databaseContainer}>
+            <ClearBookingsUtil />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -274,6 +283,16 @@ const styles = StyleSheet.create({
   },
   activityDescription: {
     color: "#666",
+  },
+  databaseContainer: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
 });
 

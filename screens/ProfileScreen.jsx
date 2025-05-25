@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,15 +9,22 @@ import {
   ScrollView,
 } from "react-native";
 import { MaterialIcons, Feather, Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../Components/AuthContext";
 import { CommonActions } from "@react-navigation/native";
 import { useTheme } from "../Components/ThemeContext";
 
 const UserProfile = ({ navigation, route }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { theme } = useTheme();
   const { userType } = route.params || { userType: "client" };
   const isServiceProvider = userType === "provider";
+  const [profileImage, setProfileImage] = useState(user?.profileImage || null);
+
+  // Sync profileImage state with user changes
+  useEffect(() => {
+    setProfileImage(user?.profileImage || null);
+  }, [user?.profileImage]);
 
   const handleLogout = async () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -52,16 +59,103 @@ const UserProfile = ({ navigation, route }) => {
   const navigateToSettings = () => {
     navigation.navigate("Settings");
   };
+  const requestPermissions = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Required",
+        "Sorry, we need camera roll permissions to change your profile picture."
+      );
+      return false;
+    }
+    return true;
+  };
+  const handleImagePicker = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+    Alert.alert(
+      "Select Image",
+      "Choose how you want to select your profile picture",
+      [
+        { text: "Camera", onPress: () => pickImageFromCamera() },
+        { text: "Gallery", onPress: () => pickImageFromGallery() },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
+  };
+  const pickImageFromCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Required",
+        "Camera permission is required to take photos."
+      );
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+    if (!result.canceled && result.assets[0]) {
+      await updateProfileImage(result.assets[0].uri);
+    }
+  };
+  const pickImageFromGallery = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+    if (!result.canceled && result.assets[0]) {
+      await updateProfileImage(result.assets[0].uri);
+    }
+  };
+  const updateProfileImage = async (imageUri) => {
+    try {
+      const updatedUserData = { ...user, profileImage: imageUri };
+      const result = await updateUser(updatedUserData);
+      if (result.success) {
+        setProfileImage(imageUri);
+        Alert.alert("Success", "Profile picture updated successfully!");
+      } else {
+        Alert.alert(
+          "Error",
+          "Failed to update profile picture. Please try again."
+        );
+      }
+    } catch (error) {
+      console.error("Error updating profile image:", error);
+      Alert.alert(
+        "Error",
+        "Failed to update profile picture. Please try again."
+      );
+    }
+  };
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.background }]}
     >
       <View style={styles.profileHeader}>
-        <Image
-          source={require("../assets/images/Profile.jpg")}
-          style={styles.avatar}
-        />
+        <TouchableOpacity
+          onPress={handleImagePicker}
+          style={styles.avatarContainer}
+        >
+          <Image
+            source={
+              profileImage
+                ? { uri: profileImage }
+                : require("../assets/images/Profile.jpg")
+            }
+            style={styles.avatar}
+          />
+          <View style={[styles.cameraIcon, { backgroundColor: theme.accent }]}>
+            <Ionicons name="camera" size={16} color="white" />
+          </View>
+        </TouchableOpacity>
         <Text style={[styles.name, { color: theme.text }]}>
           {user?.username || "User"}
         </Text>
@@ -188,12 +282,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 50,
   },
+  avatarContainer: {
+    position: "relative",
+    marginBottom: 15,
+    marginTop: 30,
+  },
   avatar: {
     width: 100,
     height: 100,
-    borderRadius: 100,
-    marginBottom: 15,
-    marginTop: 30,
+    borderRadius: 50,
+  },
+  cameraIcon: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "white",
   },
   name: {
     fontSize: 18,

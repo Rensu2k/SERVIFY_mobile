@@ -37,12 +37,49 @@ export const BookingsProvider = ({ children }) => {
       setLoading(true);
 
       // Get all bookings for current user
-      const userBookings = await bookingOperations.getAllBookings(
+      const userBookingsData = await bookingOperations.getAllBookings(
         user.username
       );
 
-      if (userBookings) {
-        setBookings(userBookings);
+      if (userBookingsData) {
+        // Check if it's already grouped or if it's an array
+        let userBookings;
+        if (Array.isArray(userBookingsData)) {
+          // If it's an array, we need to group it
+          userBookings = userBookingsData;
+        } else {
+          // If it's already grouped, flatten it first
+          userBookings = [
+            ...userBookingsData.pending,
+            ...userBookingsData.completed,
+            ...userBookingsData.cancelled,
+          ];
+        }
+
+        // Group bookings by status
+        const groupedBookings = {
+          pending: userBookings.filter(
+            (booking) =>
+              booking.status !== "Completed" &&
+              booking.status !== "Cancelled" &&
+              booking.status !== "Paid" &&
+              booking.status !== "Pending Confirmation" &&
+              booking.status !== "Declined"
+          ),
+          completed: userBookings.filter(
+            (booking) =>
+              booking.status === "Completed" ||
+              booking.status === "Pending Payment" ||
+              booking.status === "Pending Confirmation" ||
+              booking.status === "Paid"
+          ),
+          cancelled: userBookings.filter(
+            (booking) =>
+              booking.status === "Cancelled" || booking.status === "Declined"
+          ),
+        };
+
+        setBookings(groupedBookings);
       } else {
         // Initialize with empty categories if no bookings found
         setBookings({
@@ -66,11 +103,17 @@ export const BookingsProvider = ({ children }) => {
       const formattedBooking = {
         id: newBooking.id,
         status: newBooking.status,
-        color: "#F5A623", // Yellow for confirmed status
-        service: newBooking.service.name,
-        name: newBooking.provider.name,
+        color: newBooking.status === "Pending" ? "#FFC107" : "#F5A623", // Yellow for pending, orange for confirmed
+        service:
+          newBooking.service?.name ||
+          newBooking.provider?.category ||
+          "Service",
+        name: newBooking.provider?.name || "Unknown Provider",
         date: `${newBooking.date.toDateString()} at ${newBooking.time}`,
-        image: newBooking.provider.image,
+        image:
+          newBooking.provider?.profileImage ||
+          newBooking.provider?.image ||
+          null,
         details: newBooking, // Store the full booking details
         createdAt: new Date().toISOString(),
         userId: user.username, // Associate with current user
@@ -97,7 +140,11 @@ export const BookingsProvider = ({ children }) => {
   };
 
   // Update booking status
-  const updateBookingStatus = async (bookingId, newStatus) => {
+  const updateBookingStatus = async (
+    bookingId,
+    newStatus,
+    paymentMethod = null
+  ) => {
     if (!user) return false;
 
     try {
@@ -122,27 +169,61 @@ export const BookingsProvider = ({ children }) => {
           // Update status and color
           bookingToUpdate.status = newStatus;
 
+          // Store payment method if provided
+          if (paymentMethod) {
+            if (!bookingToUpdate.details) {
+              bookingToUpdate.details = {};
+            }
+            bookingToUpdate.details.paymentMethod = paymentMethod;
+          }
+
           // Set color based on status
           let newColor;
           if (newStatus === "Completed") {
-            newColor = "green";
+            newColor = "#2196F3";
             updatedBookings.completed = [
               bookingToUpdate,
               ...updatedBookings.completed,
             ];
-          } else if (newStatus === "Cancelled") {
-            newColor = "red";
+          } else if (newStatus === "Pending Payment") {
+            newColor = "#FF9800";
+            updatedBookings.completed = [
+              bookingToUpdate,
+              ...updatedBookings.completed,
+            ];
+          } else if (newStatus === "Pending Confirmation") {
+            newColor = "#FF9800";
+            updatedBookings.completed = [
+              bookingToUpdate,
+              ...updatedBookings.completed,
+            ];
+          } else if (newStatus === "Paid") {
+            newColor = "#4CAF50";
+            updatedBookings.completed = [
+              bookingToUpdate,
+              ...updatedBookings.completed,
+            ];
+          } else if (newStatus === "Cancelled" || newStatus === "Declined") {
+            newColor = "#F44336";
             updatedBookings.cancelled = [
               bookingToUpdate,
               ...updatedBookings.cancelled,
             ];
           } else {
-            newColor = newStatus === "Accepted" ? "green" : "#F5A623";
+            if (newStatus === "Accepted") {
+              newColor = "#4CAF50";
+            } else if (newStatus === "Confirmed") {
+              newColor = "#F5A623";
+            } else {
+              newColor = "#FFC107"; // Default for pending
+            }
             updatedBookings.pending = [
               bookingToUpdate,
               ...updatedBookings.pending,
             ];
           }
+
+          bookingToUpdate.color = newColor;
 
           bookingFound = true;
 
@@ -150,7 +231,8 @@ export const BookingsProvider = ({ children }) => {
           await bookingOperations.updateBookingStatus(
             bookingId,
             newStatus,
-            newColor
+            newColor,
+            paymentMethod
           );
           break;
         }

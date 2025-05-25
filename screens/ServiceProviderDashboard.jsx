@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,174 @@ import {
   FlatList,
   Image,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { useAuth } from "../Components/AuthContext";
 import { CommonActions } from "@react-navigation/native";
+import { bookingOperations } from "../Components/DatabaseService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const ServiceProviderDashboard = ({ navigation }) => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [providerBookings, setProviderBookings] = useState({
+    pending: [],
+    completed: [],
+    cancelled: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [lastCheckedBookings, setLastCheckedBookings] = useState([]);
+
+  // Load provider bookings when component mounts or user changes
+  useEffect(() => {
+    if (user && user.userType === "provider") {
+      loadProviderBookings();
+      loadNotificationData();
+    }
+  }, [user]);
+
+  // Check for new bookings and update notifications
+  useEffect(() => {
+    if (providerBookings.pending.length > 0) {
+      checkForNewBookings();
+    }
+  }, [providerBookings]);
+
+  // Set up periodic checking for new bookings
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (user && user.userType === "provider") {
+        loadProviderBookings();
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Load bookings for the current service provider
+  const loadProviderBookings = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      // Use the provider's username or id to get their bookings
+      const bookings = await bookingOperations.getProviderBookings(
+        user.username
+      );
+
+      if (bookings) {
+        setProviderBookings(bookings);
+      } else {
+        setProviderBookings({
+          pending: [],
+          completed: [],
+          cancelled: [],
+        });
+      }
+    } catch (error) {
+      console.error("Error loading provider bookings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Refresh bookings
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadProviderBookings();
+    setRefreshing(false);
+  };
+
+  // Load notification data from storage
+  const loadNotificationData = async () => {
+    try {
+      const storedData = await AsyncStorage.getItem(`notifications_${user.id}`);
+      if (storedData) {
+        const { lastChecked, count } = JSON.parse(storedData);
+        setLastCheckedBookings(lastChecked || []);
+        setNotificationCount(count || 0);
+      }
+    } catch (error) {
+      console.error("Error loading notification data:", error);
+    }
+  };
+
+  // Save notification data to storage
+  const saveNotificationData = async (lastChecked, count) => {
+    try {
+      const data = {
+        lastChecked,
+        count,
+        timestamp: new Date().toISOString(),
+      };
+      await AsyncStorage.setItem(
+        `notifications_${user.id}`,
+        JSON.stringify(data)
+      );
+    } catch (error) {
+      console.error("Error saving notification data:", error);
+    }
+  };
+
+  // Check for new bookings
+  const checkForNewBookings = () => {
+    const currentBookingIds = providerBookings.pending.map(
+      (booking) => booking.id
+    );
+    const newBookings = currentBookingIds.filter(
+      (id) => !lastCheckedBookings.includes(id)
+    );
+
+    if (newBookings.length > 0) {
+      const newCount = notificationCount + newBookings.length;
+      setNotificationCount(newCount);
+      saveNotificationData(currentBookingIds, newCount);
+
+      // Show notification alert for new bookings
+      if (lastCheckedBookings.length > 0) {
+        // Only show if not initial load
+        Alert.alert(
+          "New Booking Alert! 🔔",
+          `You have ${newBookings.length} new booking${
+            newBookings.length > 1 ? "s" : ""
+          } request${newBookings.length > 1 ? "s" : ""}!`,
+          [
+            {
+              text: "View Now",
+              onPress: () => setActiveTab("requests"),
+            },
+            {
+              text: "Later",
+              style: "cancel",
+            },
+          ]
+        );
+      }
+    }
+  };
+
+  // Clear notifications
+  const clearNotifications = () => {
+    const allBookingIds = [
+      ...providerBookings.pending.map((b) => b.id),
+      ...providerBookings.completed.map((b) => b.id),
+      ...providerBookings.cancelled.map((b) => b.id),
+    ];
+    setNotificationCount(0);
+    setLastCheckedBookings(allBookingIds);
+    saveNotificationData(allBookingIds, 0);
+  };
+
+  // Handle notification bell press
+  const handleNotificationPress = () => {
+    clearNotifications();
+    setActiveTab("requests");
+  };
 
   // Handle logout function
   const handleLogout = async () => {
@@ -45,75 +204,100 @@ const ServiceProviderDashboard = ({ navigation }) => {
     ]);
   };
 
-  // Placeholder data for service requests
-  const serviceRequests = [
-    {
-      id: "1",
-      customer: "John Doe",
-      service: "Plumbing",
-      date: "2023-06-10",
-      time: "10:00 AM",
-      status: "pending",
-      address: "123 Main St, Surigao City",
-    },
-    {
-      id: "2",
-      customer: "Jane Smith",
-      service: "Plumbing",
-      date: "2023-06-11",
-      time: "2:30 PM",
-      status: "confirmed",
-      address: "456 Park Ave, Surigao City",
-    },
-    {
-      id: "3",
-      customer: "Mike Johnson",
-      service: "Plumbing",
-      date: "2023-06-12",
-      time: "9:15 AM",
-      status: "completed",
-      address: "789 Ocean Blvd, Surigao City",
-    },
-  ];
+  // Calculate stats from real booking data
+  const calculateStats = () => {
+    const completed = providerBookings.completed.length;
+    const pending = providerBookings.pending.length;
+    const cancelled = providerBookings.cancelled.length;
 
-  const stats = {
-    completed: 15,
-    pending: 3,
-    cancelled: 2,
-    earnings: 12500,
+    // Calculate earnings (you can modify this based on your pricing structure)
+    const earnings = providerBookings.completed.reduce((total, booking) => {
+      const price = booking.details?.service?.price || 0;
+      return (
+        total + (typeof price === "number" ? price : parseFloat(price) || 0)
+      );
+    }, 0);
+
+    return {
+      completed,
+      pending,
+      cancelled,
+      earnings: earnings.toFixed(2),
+    };
+  };
+
+  const stats = calculateStats();
+
+  // Get all bookings combined for rendering
+  const getAllBookings = () => {
+    return [
+      ...providerBookings.pending,
+      ...providerBookings.completed,
+      ...providerBookings.cancelled,
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   };
 
   const renderServiceRequest = ({ item }) => {
     const getStatusColor = (status) => {
-      switch (status) {
+      switch (status.toLowerCase()) {
         case "pending":
-          return "#FFC107";
         case "confirmed":
+          return "#FFC107";
+        case "accepted":
           return "#4CAF50";
         case "completed":
           return "#2196F3";
+        case "pending payment":
+          return "#FF9800";
+        case "pending confirmation":
+          return "#FF9800";
+        case "paid":
+          return "#4CAF50";
         case "cancelled":
+        case "declined":
           return "#F44336";
         default:
           return "#757575";
       }
     };
 
+    // Format booking data to match the expected structure
+    const formattedBooking = {
+      id: item.id,
+      customer:
+        item.details?.clientName ||
+        item.details?.provider?.name ||
+        "Unknown Client",
+      service: item.details?.service?.name || item.service || "Service",
+      date: item.details?.date
+        ? new Date(item.details.date).toDateString()
+        : "N/A",
+      time: item.details?.time || "N/A",
+      status: item.status.toLowerCase(),
+      address: item.details?.address || "Address not provided",
+      clientEmail: item.details?.clientEmail || "",
+      clientPhone: item.details?.clientPhone || "",
+      paymentMethod: item.details?.paymentMethod || null,
+    };
+
     return (
       <TouchableOpacity
         style={styles.requestCard}
-        onPress={() => navigation.navigate("RequestDetails", { request: item })}
+        onPress={() =>
+          navigation.navigate("RequestDetails", { request: formattedBooking })
+        }
       >
         <View style={styles.requestHeader}>
-          <Text style={styles.customerName}>{item.customer}</Text>
+          <Text style={styles.customerName}>{formattedBooking.customer}</Text>
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: getStatusColor(item.status) },
+              { backgroundColor: getStatusColor(formattedBooking.status) },
             ]}
           >
             <Text style={styles.statusText}>
-              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+              {formattedBooking.status.charAt(0).toUpperCase() +
+                formattedBooking.status.slice(1)}
             </Text>
           </View>
         </View>
@@ -121,34 +305,118 @@ const ServiceProviderDashboard = ({ navigation }) => {
         <View style={styles.requestDetails}>
           <View style={styles.detailRow}>
             <Ionicons name="construct-outline" size={16} color="#555" />
-            <Text style={styles.detailText}>{item.service}</Text>
+            <Text style={styles.detailText}>{formattedBooking.service}</Text>
           </View>
 
           <View style={styles.detailRow}>
             <Ionicons name="calendar-outline" size={16} color="#555" />
             <Text style={styles.detailText}>
-              {item.date} at {item.time}
+              {formattedBooking.date} at {formattedBooking.time}
             </Text>
           </View>
 
-          <View style={styles.detailRow}>
-            <Ionicons name="location-outline" size={16} color="#555" />
-            <Text style={styles.detailText}>{item.address}</Text>
-          </View>
+          {formattedBooking.address && (
+            <View style={styles.detailRow}>
+              <Ionicons name="location-outline" size={16} color="#555" />
+              <Text style={styles.detailText}>{formattedBooking.address}</Text>
+            </View>
+          )}
+
+          {item.details?.service?.price && (
+            <View style={styles.detailRow}>
+              <MaterialIcons name="attach-money" size={16} color="#555" />
+              <Text style={styles.detailText}>
+                ₱
+                {typeof item.details.service.price === "number"
+                  ? item.details.service.price.toFixed(2)
+                  : item.details.service.price}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.requestActions}>
-          <TouchableOpacity style={styles.actionButton}>
-            <MaterialIcons name="check-circle" size={24} color="#4CAF50" />
-            <Text style={styles.actionText}>Accept</Text>
-          </TouchableOpacity>
+          {formattedBooking.status === "pending" && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() =>
+                navigation.navigate("RequestDetails", {
+                  request: formattedBooking,
+                })
+              }
+            >
+              <MaterialIcons name="visibility" size={24} color="#6A5ACD" />
+              <Text style={[styles.actionText, { color: "#6A5ACD" }]}>
+                View Details
+              </Text>
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity style={styles.actionButton}>
-            <MaterialIcons name="cancel" size={24} color="#F44336" />
-            <Text style={[styles.actionText, { color: "#F44336" }]}>
-              Decline
-            </Text>
-          </TouchableOpacity>
+          {formattedBooking.status === "confirmed" && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() =>
+                navigation.navigate("RequestDetails", {
+                  request: formattedBooking,
+                })
+              }
+            >
+              <MaterialIcons name="visibility" size={24} color="#6A5ACD" />
+              <Text style={[styles.actionText, { color: "#6A5ACD" }]}>
+                Accept/Decline
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {formattedBooking.status === "accepted" && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() =>
+                navigation.navigate("RequestDetails", {
+                  request: formattedBooking,
+                })
+              }
+            >
+              <MaterialIcons name="visibility" size={24} color="#6A5ACD" />
+              <Text style={[styles.actionText, { color: "#6A5ACD" }]}>
+                Mark Complete
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {formattedBooking.status === "completed" && (
+            <TouchableOpacity style={styles.actionButton}>
+              <MaterialIcons name="check-circle" size={24} color="#4CAF50" />
+              <Text style={[styles.actionText, { color: "#4CAF50" }]}>
+                Completed
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {formattedBooking.status === "pending confirmation" && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() =>
+                navigation.navigate("RequestDetails", {
+                  request: formattedBooking,
+                })
+              }
+            >
+              <MaterialIcons name="payment" size={24} color="#FF9800" />
+              <Text style={[styles.actionText, { color: "#FF9800" }]}>
+                Confirm Payment
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {formattedBooking.status === "paid" && (
+            <TouchableOpacity style={styles.actionButton}>
+              <MaterialIcons name="check-circle" size={24} color="#4CAF50" />
+              <Text style={[styles.actionText, { color: "#4CAF50" }]}>
+                Payment Confirmed
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -169,9 +437,21 @@ const ServiceProviderDashboard = ({ navigation }) => {
           <Text style={styles.statLabel}>Completed</Text>
         </View>
 
-        <View style={styles.statCard}>
+        <View
+          style={[
+            styles.statCard,
+            notificationCount > 0 && styles.statCardHighlight,
+          ]}
+        >
           <Text style={styles.statValue}>{stats.pending}</Text>
-          <Text style={styles.statLabel}>Pending</Text>
+          <View style={styles.statLabelContainer}>
+            <Text style={styles.statLabel}>Pending</Text>
+            {notificationCount > 0 && (
+              <View style={styles.statNotificationBadge}>
+                <Text style={styles.statNotificationText}>NEW</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.statCard}>
@@ -186,33 +466,63 @@ const ServiceProviderDashboard = ({ navigation }) => {
       </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recent Service Requests</Text>
+        <Text style={styles.sectionTitle}>Recent Bookings</Text>
         <TouchableOpacity onPress={() => setActiveTab("requests")}>
           <Text style={styles.seeAllText}>See All</Text>
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={serviceRequests.slice(0, 2)}
-        renderItem={renderServiceRequest}
-        keyExtractor={(item) => item.id}
-        scrollEnabled={false}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6A5ACD" />
+          <Text style={styles.loadingText}>Loading bookings...</Text>
+        </View>
+      ) : getAllBookings().length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="calendar-outline" size={50} color="#CCC" />
+          <Text style={styles.emptyText}>No bookings yet</Text>
+          <Text style={styles.emptySubText}>
+            Bookings from clients will appear here
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={getAllBookings().slice(0, 2)}
+          renderItem={renderServiceRequest}
+          keyExtractor={(item) => item.id}
+          scrollEnabled={false}
+        />
+      )}
     </>
   );
 
   const renderRequestsContent = () => (
     <>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Service Requests</Text>
+        <Text style={styles.sectionTitle}>Bookings</Text>
       </View>
 
-      <FlatList
-        data={serviceRequests}
-        renderItem={renderServiceRequest}
-        keyExtractor={(item) => item.id}
-        scrollEnabled={false}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6A5ACD" />
+          <Text style={styles.loadingText}>Loading bookings...</Text>
+        </View>
+      ) : getAllBookings().length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="calendar-outline" size={50} color="#CCC" />
+          <Text style={styles.emptyText}>No bookings yet</Text>
+          <Text style={styles.emptySubText}>
+            Bookings from clients will appear here
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={getAllBookings()}
+          renderItem={renderServiceRequest}
+          keyExtractor={(item) => item.id}
+          scrollEnabled={false}
+        />
+      )}
     </>
   );
 
@@ -221,7 +531,11 @@ const ServiceProviderDashboard = ({ navigation }) => {
       <View style={styles.profileSection}>
         <View style={styles.profileImageContainer}>
           <Image
-            source={require("../assets/images/Profile.jpg")}
+            source={
+              user?.profileImage
+                ? { uri: user.profileImage }
+                : require("../assets/images/Profile.jpg")
+            }
             style={styles.profileImage}
           />
           <TouchableOpacity
@@ -302,14 +616,37 @@ const ServiceProviderDashboard = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          {activeTab === "dashboard" && "Dashboard"}
-          {activeTab === "requests" && "Service Requests"}
-          {activeTab === "settings" && "Settings"}
-        </Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>
+            {activeTab === "dashboard" && "Dashboard"}
+            {activeTab === "requests" && "Bookings"}
+            {activeTab === "settings" && "Settings"}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.notificationButton}
+          onPress={handleNotificationPress}
+        >
+          <Ionicons name="notifications-outline" size={24} color="white" />
+          {notificationCount > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>
+                {notificationCount > 99 ? "99+" : notificationCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>{getContent()}</ScrollView>
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {getContent()}
+      </ScrollView>
 
       <View style={styles.tabBar}>
         <TouchableOpacity
@@ -349,7 +686,7 @@ const ServiceProviderDashboard = ({ navigation }) => {
               activeTab === "requests" && styles.activeTabLabel,
             ]}
           >
-            Requests
+            Bookings
           </Text>
         </TouchableOpacity>
 
@@ -384,12 +721,39 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: "#6A5ACD",
     padding: 15,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  headerLeft: {
+    flexDirection: "row",
     alignItems: "center",
   },
   headerTitle: {
     color: "white",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  notificationButton: {
+    position: "relative",
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: "#F44336",
+    borderRadius: 12,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "bold",
+    textAlign: "center",
   },
   content: {
     flex: 1,
@@ -426,6 +790,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 2,
   },
+  statCardHighlight: {
+    backgroundColor: "#FFF3E0",
+    borderColor: "#FF9800",
+    borderWidth: 2,
+  },
   statValue: {
     fontSize: 24,
     fontWeight: "bold",
@@ -435,6 +804,23 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 14,
     color: "#757575",
+  },
+  statLabelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statNotificationBadge: {
+    backgroundColor: "#F44336",
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    marginLeft: 5,
+  },
+  statNotificationText: {
+    color: "white",
+    fontSize: 8,
+    fontWeight: "bold",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -590,6 +976,31 @@ const styles = StyleSheet.create({
   },
   logoutItem: {
     marginTop: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    color: "#6A5ACD",
+    fontSize: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyText: {
+    color: "#757575",
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  emptySubText: {
+    color: "#CCC",
+    fontSize: 14,
   },
 });
 

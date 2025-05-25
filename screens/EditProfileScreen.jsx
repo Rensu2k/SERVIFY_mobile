@@ -9,9 +9,16 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useTheme } from "../Components/ThemeContext";
 import { useAuth } from "../Components/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -22,6 +29,7 @@ const EditProfileScreen = ({ navigation }) => {
   const isServiceProvider = user?.userType === "provider";
 
   const [loading, setLoading] = useState(false);
+  const [profileImage, setProfileImage] = useState(user?.profileImage || null);
   const [formData, setFormData] = useState({
     username: user?.username || "",
     email: user?.email || "",
@@ -40,9 +48,107 @@ const EditProfileScreen = ({ navigation }) => {
     }));
   };
 
+  const requestPermissions = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Required",
+        "Sorry, we need camera roll permissions to change your profile picture."
+      );
+      return false;
+    }
+    return true;
+  };
+
+  const handleImagePicker = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    Alert.alert(
+      "Select Image",
+      "Choose how you want to select your profile picture",
+      [
+        {
+          text: "Camera",
+          onPress: () => pickImageFromCamera(),
+        },
+        {
+          text: "Gallery",
+          onPress: () => pickImageFromGallery(),
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ]
+    );
+  };
+
+  const pickImageFromCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Required",
+        "Camera permission is required to take photos."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setProfileImage(result.assets[0].uri);
+    }
+  };
+
+  const pickImageFromGallery = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setProfileImage(result.assets[0].uri);
+    }
+  };
+
   const validateForm = () => {
     if (!formData.username.trim()) {
       Alert.alert("Validation Error", "Username is required");
+      return false;
+    }
+
+    // Username format validation
+    if (formData.username.length < 3) {
+      Alert.alert(
+        "Validation Error",
+        "Username must be at least 3 characters long"
+      );
+      return false;
+    }
+
+    if (formData.username.length > 20) {
+      Alert.alert(
+        "Validation Error",
+        "Username must be less than 20 characters long"
+      );
+      return false;
+    }
+
+    // Check for valid username characters (alphanumeric, underscore, hyphen)
+    const usernameRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!usernameRegex.test(formData.username)) {
+      Alert.alert(
+        "Validation Error",
+        "Username can only contain letters, numbers, underscores, and hyphens"
+      );
       return false;
     }
 
@@ -51,9 +157,6 @@ const EditProfileScreen = ({ navigation }) => {
       Alert.alert("Validation Error", "Please enter a valid email address");
       return false;
     }
-
-    // No additional validation needed for service providers now
-    // Job description is optional
 
     return true;
   };
@@ -67,20 +170,22 @@ const EditProfileScreen = ({ navigation }) => {
       const storedUsers = await AsyncStorage.getItem("servify_users");
       let registeredUsers = storedUsers ? JSON.parse(storedUsers) : [];
 
-      const usernameAlreadyExists = registeredUsers.some(
-        (registeredUser) =>
-          registeredUser.username === formData.username &&
-          registeredUser.userType === user.userType &&
-          registeredUser.username !== user.username
-      );
-
-      if (usernameAlreadyExists) {
-        Alert.alert(
-          "Error",
-          "This username is already taken. Please choose a different one."
+      // Only check for username conflicts if the username is actually being changed
+      if (formData.username !== user.username) {
+        const usernameAlreadyExists = registeredUsers.some(
+          (registeredUser) =>
+            registeredUser.username === formData.username &&
+            registeredUser.userType === user.userType
         );
-        setLoading(false);
-        return;
+
+        if (usernameAlreadyExists) {
+          Alert.alert(
+            "Error",
+            "This username is already taken. Please choose a different one."
+          );
+          setLoading(false);
+          return;
+        }
       }
 
       // Create updated user data
@@ -91,6 +196,7 @@ const EditProfileScreen = ({ navigation }) => {
         fullName: formData.fullName,
         phone: formData.phone,
         address: formData.address,
+        profileImage: profileImage,
       };
 
       // Add service provider specific fields if user is a service provider
@@ -131,10 +237,45 @@ const EditProfileScreen = ({ navigation }) => {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={styles.formContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        enableAutomaticScroll={Platform.OS === "ios"}
+        extraHeight={150}
+        extraScrollHeight={150}
       >
+        {/* Profile Picture Section */}
+        <View style={styles.profilePictureSection}>
+          <Text style={[styles.label, { color: theme.text }]}>
+            Profile Picture
+          </Text>
+          <TouchableOpacity
+            onPress={handleImagePicker}
+            style={styles.avatarContainer}
+          >
+            <Image
+              source={
+                profileImage
+                  ? { uri: profileImage }
+                  : require("../assets/images/Profile.jpg")
+              }
+              style={styles.avatar}
+            />
+            <View
+              style={[styles.cameraIcon, { backgroundColor: theme.accent }]}
+            >
+              <Ionicons name="camera" size={16} color="white" />
+            </View>
+          </TouchableOpacity>
+          <Text
+            style={[styles.helperText, { color: theme.text, opacity: 0.6 }]}
+          >
+            Tap to change your profile picture
+          </Text>
+        </View>
+
         <View style={styles.formGroup}>
           <Text style={[styles.label, { color: theme.text }]}>Username</Text>
           <TextInput
@@ -147,6 +288,12 @@ const EditProfileScreen = ({ navigation }) => {
             value={formData.username}
             onChangeText={(text) => handleInputChange("username", text)}
           />
+          <Text
+            style={[styles.helperText, { color: theme.text, opacity: 0.6 }]}
+          >
+            Username must be 3-20 characters long and can only contain letters,
+            numbers, underscores, and hyphens
+          </Text>
         </View>
 
         <View style={styles.formGroup}>
@@ -201,7 +348,11 @@ const EditProfileScreen = ({ navigation }) => {
           <TextInput
             style={[
               styles.input,
-              { backgroundColor: theme.card, color: theme.text, height: 80 },
+              {
+                backgroundColor: theme.card,
+                color: theme.text,
+                height: 80,
+              },
             ]}
             placeholderTextColor={theme.placeholder}
             placeholder="Address"
@@ -283,7 +434,7 @@ const EditProfileScreen = ({ navigation }) => {
             <Text style={styles.saveButtonText}>Save Changes</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 };
@@ -354,6 +505,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#777",
     marginTop: 5,
+  },
+  profilePictureSection: {
+    alignItems: "center",
+    marginBottom: 30,
+    paddingVertical: 20,
+  },
+  avatarContainer: {
+    position: "relative",
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  cameraIcon: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "white",
   },
 });
 

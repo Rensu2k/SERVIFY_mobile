@@ -126,6 +126,7 @@ export const getProvidersByCategory = async (categoryId) => {
           name: userInfo?.username || "Unknown Provider",
           email: userInfo?.email || "",
           userType: userInfo?.userType || "provider",
+          profileImage: userInfo?.profileImage || null, // Include profile image
           rating: "4.5", // Default rating - you might want to implement a rating system
           reviews: "0", // Default reviews count
           services: [],
@@ -159,6 +160,7 @@ export const getAllProviders = async () => {
           name: userInfo?.username || "Unknown Provider",
           email: userInfo?.email || "",
           userType: userInfo?.userType || "provider",
+          profileImage: userInfo?.profileImage || null, // Include profile image
           rating: "4.5", // Default rating
           reviews: "0", // Default reviews count
           services: [],
@@ -223,6 +225,7 @@ export const getServicesWithProviders = async () => {
             name: userInfo.username || "Unknown Provider",
             email: userInfo.email || "",
             userType: userInfo.userType || "provider",
+            profileImage: userInfo.profileImage || null, // Include profile image
             rating: "4.5", // Default rating
             reviews: "0", // Default reviews count
             userInfo: userInfo,

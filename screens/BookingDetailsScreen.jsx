@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Linking,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -85,6 +87,189 @@ const BookingDetailsScreen = ({ route, navigation }) => {
     );
   };
 
+  const openGCashApp = async () => {
+    try {
+      // Updated GCash app deep link schemes (more comprehensive)
+      const gcashSchemes = [
+        "gcash://home", // GCash home screen
+        "gcash://send", // GCash send money
+        "gcash://pay", // GCash pay
+        "gcash://", // Basic GCash scheme
+        "com.mynt.gcash://home", // Alternative with home
+        "com.mynt.gcash://", // Alternative basic
+      ];
+
+      let appOpened = false;
+
+      // Try each scheme until one works
+      for (const scheme of gcashSchemes) {
+        try {
+          console.log(`Trying to open: ${scheme}`);
+          const canOpen = await Linking.canOpenURL(scheme);
+          console.log(`Can open ${scheme}: ${canOpen}`);
+
+          if (canOpen) {
+            await Linking.openURL(scheme);
+            appOpened = true;
+            console.log(`Successfully opened: ${scheme}`);
+            break;
+          }
+        } catch (error) {
+          console.log(`Failed to open ${scheme}:`, error);
+        }
+      }
+
+      if (!appOpened) {
+        // Try alternative approach - just proceed with payment confirmation
+        Alert.alert(
+          "Open GCash Manually",
+          "Please open your GCash app manually to complete the payment, then return here to confirm.",
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+            {
+              text: "I'll Open GCash",
+              onPress: () => {
+                // Give user time to switch to GCash manually
+                setTimeout(() => {
+                  Alert.alert(
+                    "Payment Confirmation",
+                    "Have you completed the payment in GCash?",
+                    [
+                      {
+                        text: "Not Yet",
+                        style: "cancel",
+                      },
+                      {
+                        text: "Yes, Completed",
+                        onPress: () => handlePayment("GCash"),
+                      },
+                    ]
+                  );
+                }, 3000); // Wait 3 seconds
+              },
+            },
+            {
+              text: "Download GCash",
+              onPress: () => {
+                const storeUrl =
+                  Platform.OS === "ios"
+                    ? "https://apps.apple.com/ph/app/gcash/id520948088"
+                    : "https://play.google.com/store/apps/details?id=com.globe.gcash.android";
+                Linking.openURL(storeUrl);
+              },
+            },
+          ]
+        );
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Error opening GCash app:", error);
+      Alert.alert(
+        "Manual GCash Payment",
+        "Please open GCash manually to complete your payment, then return here to confirm.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Open GCash Manually",
+            onPress: () => {
+              setTimeout(() => {
+                Alert.alert(
+                  "Payment Confirmation",
+                  "Have you completed the payment in GCash?",
+                  [
+                    {
+                      text: "Not Yet",
+                      style: "cancel",
+                    },
+                    {
+                      text: "Yes, Completed",
+                      onPress: () => handlePayment("GCash"),
+                    },
+                  ]
+                );
+              }, 3000);
+            },
+          },
+        ]
+      );
+      return false;
+    }
+  };
+
+  const handleProceedToPayment = () => {
+    Alert.alert("Payment Method", "Choose your preferred payment method:", [
+      {
+        text: "💵 Cash",
+        onPress: () => handlePayment("Cash"),
+      },
+      {
+        text: "💳 GCash",
+        onPress: async () => {
+          const gcashOpened = await openGCashApp();
+          if (gcashOpened) {
+            // Give user time to complete payment in GCash app
+            setTimeout(() => {
+              Alert.alert(
+                "Payment Confirmation",
+                "Have you completed the payment in GCash?",
+                [
+                  {
+                    text: "Not Yet",
+                    style: "cancel",
+                  },
+                  {
+                    text: "Yes, Completed",
+                    onPress: () => handlePayment("GCash"),
+                  },
+                ]
+              );
+            }, 2000); // Wait 2 seconds before asking
+          }
+        },
+      },
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+    ]);
+  };
+
+  const handlePayment = async (paymentMethod) => {
+    try {
+      // Update booking status to pending confirmation with payment method
+      const success = await updateBookingStatus(
+        bookingId,
+        "Pending Confirmation",
+        paymentMethod
+      );
+
+      if (success) {
+        Alert.alert(
+          "Payment Submitted",
+          `Payment via ${paymentMethod} has been submitted. The service provider will confirm your payment shortly.`,
+          [
+            {
+              text: "OK",
+              onPress: () => navigation.goBack(),
+            },
+          ]
+        );
+      } else {
+        Alert.alert("Error", "Failed to process payment. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error processing payment:", error);
+      Alert.alert("Error", "Failed to process payment. Please try again.");
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     return dateString;
@@ -120,6 +305,12 @@ const BookingDetailsScreen = ({ route, navigation }) => {
                 ? "close-circle"
                 : booking.status === "Completed"
                 ? "trophy"
+                : booking.status === "Pending Payment"
+                ? "card"
+                : booking.status === "Pending Confirmation"
+                ? "hourglass"
+                : booking.status === "Paid"
+                ? "checkmark-done-circle"
                 : "time"
             }
             size={28}
@@ -137,7 +328,9 @@ const BookingDetailsScreen = ({ route, navigation }) => {
           <View style={styles.providerInfo}>
             <Image
               source={
-                booking.image || require("../assets/images/airconTech.png")
+                booking.details?.provider?.profileImage
+                  ? { uri: booking.details.provider.profileImage }
+                  : booking.image || require("../assets/images/airconTech.png")
               }
               style={styles.providerImage}
             />
@@ -168,44 +361,49 @@ const BookingDetailsScreen = ({ route, navigation }) => {
             <Text style={[styles.detailLabel, { color: theme.text }]}>
               Service:
             </Text>
-            <Text style={[styles.detailValue, { color: theme.text }]}>
-              {booking.service}
+            <Text
+              style={[
+                styles.detailValue,
+                { color: theme.accent, fontWeight: "600" },
+              ]}
+            >
+              {booking.service || "Service"}
             </Text>
           </View>
 
           {booking.details && booking.details.service && (
             <>
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: theme.text }]}>
-                  Service Type:
-                </Text>
-                <Text style={[styles.detailValue, { color: theme.text }]}>
-                  {booking.details.service.name}
-                </Text>
-              </View>
+              {booking.details.service.price && (
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: theme.text }]}>
+                    Price:
+                  </Text>
+                  <Text
+                    style={[
+                      styles.detailValue,
+                      { color: theme.accent, fontWeight: "bold" },
+                    ]}
+                  >
+                    ₱
+                    {typeof booking.details.service.price === "number"
+                      ? booking.details.service.price.toFixed(2)
+                      : booking.details.service.price}
+                  </Text>
+                </View>
+              )}
 
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: theme.text }]}>
-                  Price:
-                </Text>
-                <Text
-                  style={[
-                    styles.detailValue,
-                    { color: theme.accent, fontWeight: "bold" },
-                  ]}
-                >
-                  {booking.details.service.price}
-                </Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: theme.text }]}>
-                  Description:
-                </Text>
-                <Text style={[styles.detailDescription, { color: theme.text }]}>
-                  {booking.details.service.description}
-                </Text>
-              </View>
+              {booking.details.service.description && (
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: theme.text }]}>
+                    Description:
+                  </Text>
+                  <Text
+                    style={[styles.detailDescription, { color: theme.text }]}
+                  >
+                    {booking.details.service.description}
+                  </Text>
+                </View>
+              )}
             </>
           )}
         </View>
@@ -235,13 +433,107 @@ const BookingDetailsScreen = ({ route, navigation }) => {
           </View>
         </View>
 
-        {booking.status !== "Cancelled" && booking.status !== "Completed" && (
+        <View style={[styles.card, { backgroundColor: theme.card }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Service Location
+          </Text>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: theme.text }]}>
+              Address:
+            </Text>
+            <Text style={[styles.detailValue, { color: theme.text }]}>
+              {booking.details?.address || "Address not provided"}
+            </Text>
+          </View>
+        </View>
+
+        {/* Payment Information */}
+        {(booking.status === "Pending Confirmation" ||
+          booking.status === "Paid") &&
+          booking.details?.paymentMethod && (
+            <View style={[styles.card, { backgroundColor: theme.card }]}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                Payment Information
+              </Text>
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: theme.text }]}>
+                  Payment Method:
+                </Text>
+                <View style={styles.paymentMethodContainer}>
+                  <Text
+                    style={[styles.paymentMethodText, { color: theme.accent }]}
+                  >
+                    {booking.details.paymentMethod === "Cash"
+                      ? "💵 Cash"
+                      : "💳 GCash"}
+                  </Text>
+                  <Text
+                    style={[styles.paymentStatusText, { color: theme.text }]}
+                  >
+                    {booking.status === "Paid"
+                      ? "✅ Confirmed"
+                      : "⏳ Pending Confirmation"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+        {booking.status !== "Cancelled" &&
+          booking.status !== "Declined" &&
+          booking.status !== "Completed" &&
+          booking.status !== "Pending Payment" &&
+          booking.status !== "Pending Confirmation" &&
+          booking.status !== "Paid" && (
+            <TouchableOpacity
+              style={[styles.cancelButton, { backgroundColor: "#FF3B30" }]}
+              onPress={handleCancel}
+            >
+              <Text style={styles.buttonText}>Cancel Booking</Text>
+            </TouchableOpacity>
+          )}
+
+        {booking.status === "Completed" && (
           <TouchableOpacity
-            style={[styles.cancelButton, { backgroundColor: "#FF3B30" }]}
-            onPress={handleCancel}
+            style={[styles.paymentButton, { backgroundColor: "#4CAF50" }]}
+            onPress={handleProceedToPayment}
           >
-            <Text style={styles.buttonText}>Cancel Booking</Text>
+            <Text style={styles.buttonText}>Proceed to Payment</Text>
           </TouchableOpacity>
+        )}
+
+        {booking.status === "Pending Payment" && (
+          <TouchableOpacity
+            style={[styles.paymentButton, { backgroundColor: "#4CAF50" }]}
+            onPress={handleProceedToPayment}
+          >
+            <Text style={styles.buttonText}>Complete Payment</Text>
+          </TouchableOpacity>
+        )}
+
+        {booking.status === "Pending Confirmation" && (
+          <View
+            style={[
+              styles.pendingConfirmationIndicator,
+              { backgroundColor: "#FFF3E0" },
+            ]}
+          >
+            <Ionicons name="hourglass" size={24} color="#FF9800" />
+            <Text
+              style={[styles.pendingConfirmationText, { color: "#FF9800" }]}
+            >
+              Payment Pending Confirmation
+            </Text>
+          </View>
+        )}
+
+        {booking.status === "Paid" && (
+          <View style={[styles.paidIndicator, { backgroundColor: "#E8F5E8" }]}>
+            <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+            <Text style={[styles.paidText, { color: "#4CAF50" }]}>
+              Payment Completed
+            </Text>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -355,6 +647,47 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "500",
+  },
+  paymentButton: {
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 30,
+  },
+  paidIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
+  },
+  paidText: {
+    marginLeft: 10,
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  pendingConfirmationIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 30,
+  },
+  pendingConfirmationText: {
+    marginLeft: 10,
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  paymentMethodContainer: {
+    flex: 1,
+  },
+  paymentMethodText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  paymentStatusText: {
+    fontSize: 14,
+    opacity: 0.8,
   },
 });
 

@@ -10,6 +10,10 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
@@ -61,6 +65,7 @@ const ManageServicesScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [currentService, setCurrentService] = useState(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -72,6 +77,35 @@ const ManageServicesScreen = ({ navigation }) => {
   useEffect(() => {
     loadServices();
   }, []);
+
+  // Keyboard event listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      "keyboardDidShow",
+      () => setKeyboardVisible(true)
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      "keyboardDidHide",
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
+
+  // Function to dismiss keyboard
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+  };
+
+  // Function to close modal and dismiss keyboard
+  const closeModal = () => {
+    dismissKeyboard();
+    setModalVisible(false);
+    setKeyboardVisible(false);
+  };
 
   const loadServices = async () => {
     try {
@@ -214,7 +248,7 @@ const ManageServicesScreen = ({ navigation }) => {
 
     const success = await saveServices(updatedServices);
     if (success) {
-      setModalVisible(false);
+      closeModal();
       Alert.alert(
         "Success",
         currentService
@@ -339,125 +373,156 @@ const ManageServicesScreen = ({ navigation }) => {
         visible={modalVisible}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={closeModal}
       >
+        <TouchableWithoutFeedback onPress={dismissKeyboard}>
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {currentService ? "Edit Service" : "Add New Service"}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            <TouchableWithoutFeedback onPress={() => {}}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={styles.modalKeyboardView}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
               >
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalForm}>
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Service Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Basic Plumbing Repair"
-                  value={formData.name}
-                  onChangeText={(text) => handleInputChange("name", text)}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Category *</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.categoryScrollView}
+                <View
+                  style={[
+                    styles.modalContent,
+                    keyboardVisible && styles.modalContentKeyboardVisible,
+                  ]}
                 >
-                  <View style={styles.categoryOptionsContainer}>
-                    {SERVICE_CATEGORIES.map((category) => (
-                      <TouchableOpacity
-                        key={category.id}
-                        style={[
-                          styles.categoryOption,
-                          formData.category === category.id &&
-                            styles.categoryOptionSelected,
-                          { borderColor: category.color },
-                        ]}
-                        onPress={() =>
-                          handleInputChange("category", category.id)
-                        }
-                      >
-                        <FontAwesome5
-                          name={category.icon}
-                          size={16}
-                          color={
-                            formData.category === category.id
-                              ? "white"
-                              : category.color
-                          }
-                          style={styles.categoryOptionIcon}
-                        />
-                        <Text
-                          style={[
-                            styles.categoryOptionText,
-                            formData.category === category.id &&
-                              styles.categoryOptionTextSelected,
-                          ]}
-                        >
-                          {category.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Description</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Describe what this service includes"
-                  value={formData.description}
-                  onChangeText={(text) =>
-                    handleInputChange("description", text)
-                  }
-                  multiline
-                  numberOfLines={4}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Price (₱) *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. 500"
-                  value={formData.price}
-                  onChangeText={(text) => handleInputChange("price", text)}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Duration</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. 1-2 hours"
-                  value={formData.duration}
-                  onChangeText={(text) => handleInputChange("duration", text)}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleSaveService}
-              >
-                <Text style={styles.saveButtonText}>
-                  {currentService ? "Save Changes" : "Add Service"}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {currentService ? "Edit Service" : "Add New Service"}
                 </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+                <TouchableOpacity
+                      onPress={closeModal}
+                  hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                >
+                  <Ionicons name="close" size={24} color="#333" />
+                </TouchableOpacity>
+              </View>
+
+                  <ScrollView
+                    style={styles.modalForm}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Service Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Basic Plumbing Repair"
+                    value={formData.name}
+                    onChangeText={(text) => handleInputChange("name", text)}
+                        returnKeyType="next"
+                        onSubmitEditing={dismissKeyboard}
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Category *</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.categoryScrollView}
+                  >
+                    <View style={styles.categoryOptionsContainer}>
+                      {SERVICE_CATEGORIES.map((category) => (
+                        <TouchableOpacity
+                          key={category.id}
+                          style={[
+                            styles.categoryOption,
+                            formData.category === category.id &&
+                              styles.categoryOptionSelected,
+                            { borderColor: category.color },
+                          ]}
+                          onPress={() =>
+                            handleInputChange("category", category.id)
+                          }
+                        >
+                          <FontAwesome5
+                            name={category.icon}
+                            size={16}
+                            color={
+                              formData.category === category.id
+                                ? "white"
+                                : category.color
+                            }
+                            style={styles.categoryOptionIcon}
+                          />
+                          <Text
+                            style={[
+                              styles.categoryOptionText,
+                              formData.category === category.id &&
+                                styles.categoryOptionTextSelected,
+                            ]}
+                          >
+                            {category.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Description</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Describe what this service includes"
+                    value={formData.description}
+                    onChangeText={(text) =>
+                      handleInputChange("description", text)
+                    }
+                    multiline
+                    numberOfLines={4}
+                        returnKeyType="next"
+                        onSubmitEditing={dismissKeyboard}
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Price (₱) *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 500"
+                    value={formData.price}
+                        onChangeText={(text) =>
+                          handleInputChange("price", text)
+                        }
+                    keyboardType="numeric"
+                        returnKeyType="next"
+                        onSubmitEditing={dismissKeyboard}
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Duration</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 1-2 hours"
+                    value={formData.duration}
+                        onChangeText={(text) =>
+                          handleInputChange("duration", text)
+                        }
+                        returnKeyType="done"
+                        onSubmitEditing={dismissKeyboard}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSaveService}
+                >
+                  <Text style={styles.saveButtonText}>
+                    {currentService ? "Save Changes" : "Add Service"}
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+            </TouchableWithoutFeedback>
         </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
@@ -633,6 +698,10 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
+  modalKeyboardView: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
   modalContent: {
     backgroundColor: "white",
     borderTopLeftRadius: 20,
@@ -718,6 +787,9 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  modalContentKeyboardVisible: {
+    maxHeight: "70%",
   },
 });
 

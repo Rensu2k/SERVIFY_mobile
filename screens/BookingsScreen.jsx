@@ -81,7 +81,7 @@ const Bookings = ({ route, navigation }) => {
                 },
               ]}
             >
-              {booking.service}
+              {booking.service || "Service"}
             </Text>
             <TouchableOpacity
               onPress={() =>
@@ -96,13 +96,18 @@ const Bookings = ({ route, navigation }) => {
           <View style={styles.cardBody}>
             <Image
               source={
-                booking.image || require("../assets/images/airconTech.png")
+                booking.details?.provider?.profileImage
+                  ? { uri: booking.details.provider.profileImage }
+                  : booking.image || require("../assets/images/airconTech.png")
               }
               style={styles.image}
             />
             <View style={styles.textContent}>
               <Text style={[styles.name, { color: theme.text }]}>
                 {booking.name}
+              </Text>
+              <Text style={[styles.serviceName, { color: theme.accent }]}>
+                {booking.service || "Service"}
               </Text>
               <Text style={{ color: booking.color }}>{booking.status}</Text>
               <Text
@@ -116,11 +121,21 @@ const Bookings = ({ route, navigation }) => {
               {booking.details && booking.details.service && (
                 <View style={styles.serviceDetails}>
                   <Text style={[styles.serviceType, { color: theme.text }]}>
-                    {booking.details.service.name}
+                    Service:{" "}
+                    {booking.details.service.name ||
+                      booking.service ||
+                      "Service"}
                   </Text>
-                  <Text style={[styles.servicePrice, { color: theme.accent }]}>
-                    {booking.details.service.price}
-                  </Text>
+                  {booking.details.service.price && (
+                    <Text
+                      style={[styles.servicePrice, { color: theme.accent }]}
+                    >
+                      ₱
+                      {typeof booking.details.service.price === "number"
+                        ? booking.details.service.price.toFixed(2)
+                        : booking.details.service.price}
+                    </Text>
+                  )}
                 </View>
               )}
             </View>
@@ -254,6 +269,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 14,
     marginBottom: 2,
+  },
+  serviceName: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginBottom: 2,
+    fontStyle: "italic",
   },
   date: {
     fontSize: 12,

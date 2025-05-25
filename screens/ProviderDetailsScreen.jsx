@@ -10,6 +10,7 @@ import {
   Alert,
   FlatList,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,7 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const AVAILABILITY_STORAGE_KEY = "servify_provider_availability";
 
 const ProviderDetailsScreen = ({ route, navigation }) => {
-  const { provider } = route.params || {};
+  const { provider, selectedService } = route.params || {};
 
   // Safety check for provider data
   if (!provider) {
@@ -42,10 +43,15 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
+  const [selectedBookingService, setSelectedBookingService] = useState(
+    selectedService || null
+  );
   const [loadingAvailability, setLoadingAvailability] = useState(true);
   const [availableDates, setAvailableDates] = useState([]);
   const [availableTimes, setAvailableTimes] = useState([]);
   const [providerAvailability, setProviderAvailability] = useState({});
+  const [serviceAddress, setServiceAddress] = useState(user?.address || "");
+  const [useProfileAddress, setUseProfileAddress] = useState(true);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -87,7 +93,14 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
 
   useEffect(() => {
     loadProviderAvailability();
-  }, [provider]);
+  }, []);
+
+  useEffect(() => {
+    if (user?.address && serviceAddress === "") {
+      setServiceAddress(user.address);
+      setUseProfileAddress(true);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (Object.keys(providerAvailability).length > 0) {
@@ -227,16 +240,33 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
       return;
     }
 
+    if (!selectedBookingService) {
+      Alert.alert("Error", "Please select a service for your booking");
+      return;
+    }
+
     if (!selectedDate || !selectedTime) {
       Alert.alert("Error", "Please select a date and time for your booking");
+      return;
+    }
+
+    // Check if address is provided
+    if (!serviceAddress || serviceAddress.trim() === "") {
+      Alert.alert("Error", "Please provide a service address");
       return;
     }
 
     Alert.alert(
       "Booking Confirmation",
       `You are about to book ${
+        selectedBookingService?.name || "a service"
+      } with ${
         provider?.name || "this provider"
-      } on ${selectedDate.toDateString()} at ${selectedTime}. Proceed?`,
+      } on ${selectedDate.toDateString()} at ${selectedTime}. 
+
+Service Location: ${serviceAddress}
+
+Proceed?`,
       [
         {
           text: "Cancel",
@@ -249,9 +279,10 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
             const bookingDetails = {
               id: `booking-${Date.now()}`,
               provider: provider,
+              service: selectedBookingService, // Include the specific service being booked
               date: selectedDate,
               time: selectedTime,
-              status: "Confirmed",
+              status: "Pending",
               createdAt: new Date().toISOString(),
               // Add client information
               clientId: user.username,
@@ -259,6 +290,8 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
               clientName: user.fullName || user.username,
               clientEmail: user.email,
               clientPhone: user.phone,
+              // Add service address
+              address: serviceAddress,
             };
 
             // Add booking using context which now uses AsyncStorage
@@ -266,8 +299,8 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
 
             if (success) {
               Alert.alert(
-                "Booking Successful",
-                "Your booking has been confirmed. The service provider will contact you soon."
+                "Booking Submitted",
+                "Your booking request has been submitted. The service provider will review and respond to your request soon."
               );
               // Navigate to Bookings tab within the ClientTabs
               navigation.navigate("ClientTabs", { screen: "Bookings" });
@@ -355,9 +388,11 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
         <View style={styles.providerSection}>
           <Image
             source={
-              provider?.image || {
-                uri: "https://via.placeholder.com/100x100/cccccc/000000?text=Profile",
-              }
+              provider?.profileImage
+                ? { uri: provider.profileImage }
+                : provider?.image || {
+                    uri: "https://via.placeholder.com/100x100/cccccc/000000?text=Profile",
+                  }
             }
             style={styles.providerImage}
           />
@@ -436,6 +471,64 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             Book an Appointment
           </Text>
+
+          {/* Service Selection */}
+          {provider?.services && provider.services.length > 0 && (
+            <>
+              <Text style={[styles.bookingLabel, { color: theme.text }]}>
+                Select Service:
+              </Text>
+              <View style={styles.serviceSelector}>
+                {provider.services.map((service, index) => (
+                  <TouchableOpacity
+                    key={service.id || index}
+                    style={[
+                      styles.serviceItem,
+                      selectedBookingService?.id === service.id
+                        ? {
+                            backgroundColor: theme.accent,
+                            borderColor: theme.accent,
+                          }
+                        : {
+                            backgroundColor: theme.card,
+                            borderColor: theme.border,
+                          },
+                    ]}
+                    onPress={() => setSelectedBookingService(service)}
+                  >
+                    <Text
+                      style={[
+                        styles.serviceItemName,
+                        {
+                          color:
+                            selectedBookingService?.id === service.id
+                              ? "white"
+                              : theme.text,
+                        },
+                      ]}
+                    >
+                      {service.name}
+                    </Text>
+                    {service.price && (
+                      <Text
+                        style={[
+                          styles.serviceItemPrice,
+                          {
+                            color:
+                              selectedBookingService?.id === service.id
+                                ? "white"
+                                : theme.accent,
+                          },
+                        ]}
+                      >
+                        ₱{service.price.toFixed(2)}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
 
           {/* Loading availability */}
           {loadingAvailability && (
@@ -570,6 +663,104 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
               </View>
             )}
 
+          {/* Service Address Section */}
+          {!loadingAvailability && availableDates.length > 0 && (
+            <>
+              <Text style={[styles.bookingLabel, { color: theme.text }]}>
+                Service Address:
+              </Text>
+
+              {user?.address && (
+                <TouchableOpacity
+                  style={[
+                    styles.addressOption,
+                    {
+                      backgroundColor: useProfileAddress
+                        ? theme.accent
+                        : theme.card,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                  onPress={() => {
+                    setUseProfileAddress(true);
+                    setServiceAddress(user.address);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.addressOptionText,
+                      {
+                        color: useProfileAddress ? "white" : theme.text,
+                      },
+                    ]}
+                  >
+                    Use Profile Address
+                  </Text>
+                  <Text
+                    style={[
+                      styles.addressPreview,
+                      {
+                        color: useProfileAddress ? "white" : theme.text,
+                        opacity: 0.8,
+                      },
+                    ]}
+                  >
+                    {user.address}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.addressOption,
+                  {
+                    backgroundColor: !useProfileAddress
+                      ? theme.accent
+                      : theme.card,
+                    borderColor: theme.border,
+                  },
+                ]}
+                onPress={() => {
+                  setUseProfileAddress(false);
+                  if (!serviceAddress || serviceAddress === user?.address) {
+                    setServiceAddress("");
+                  }
+                }}
+              >
+                <Text
+                  style={[
+                    styles.addressOptionText,
+                    {
+                      color: !useProfileAddress ? "white" : theme.text,
+                    },
+                  ]}
+                >
+                  Use Different Address
+                </Text>
+              </TouchableOpacity>
+
+              {!useProfileAddress && (
+                <TextInput
+                  style={[
+                    styles.addressInput,
+                    {
+                      backgroundColor: theme.card,
+                      color: theme.text,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                  placeholder="Enter service address..."
+                  placeholderTextColor={theme.placeholder}
+                  value={serviceAddress}
+                  onChangeText={setServiceAddress}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              )}
+            </>
+          )}
+
           {/* Book Button */}
           {!loadingAvailability && availableDates.length > 0 && (
             <TouchableOpacity
@@ -578,14 +769,18 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
                 {
                   backgroundColor:
                     provider?.userInfo?.isAvailable !== false &&
+                    selectedBookingService &&
                     selectedDate &&
-                    selectedTime
+                    selectedTime &&
+                    serviceAddress.trim()
                       ? theme.accent
                       : "#CCCCCC",
                   opacity:
                     provider?.userInfo?.isAvailable !== false &&
+                    selectedBookingService &&
                     selectedDate &&
-                    selectedTime
+                    selectedTime &&
+                    serviceAddress.trim()
                       ? 1
                       : 0.6,
                 },
@@ -593,8 +788,10 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
               onPress={handleBooking}
               disabled={
                 provider?.userInfo?.isAvailable === false ||
+                !selectedBookingService ||
                 !selectedDate ||
-                !selectedTime
+                !selectedTime ||
+                !serviceAddress.trim()
               }
             >
               <Text
@@ -603,8 +800,10 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
                   {
                     color:
                       provider?.userInfo?.isAvailable !== false &&
+                      selectedBookingService &&
                       selectedDate &&
-                      selectedTime
+                      selectedTime &&
+                      serviceAddress.trim()
                         ? "white"
                         : "#777777",
                   },
@@ -612,8 +811,12 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
               >
                 {provider?.userInfo?.isAvailable === false
                   ? "Provider Unavailable"
+                  : !selectedBookingService
+                  ? "Select Service"
                   : !selectedDate || !selectedTime
                   ? "Select Date & Time"
+                  : !serviceAddress.trim()
+                  ? "Enter Service Address"
                   : "Book Now"}
               </Text>
             </TouchableOpacity>
@@ -809,6 +1012,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontStyle: "italic",
     opacity: 0.7,
+  },
+  serviceSelector: {
+    marginBottom: 16,
+  },
+  serviceItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  serviceItemName: {
+    fontSize: 16,
+    fontWeight: "500",
+    flex: 1,
+  },
+  serviceItemPrice: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  addressOption: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#EEEEEE",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  addressOptionText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  addressPreview: {
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  addressInput: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#EEEEEE",
+    borderRadius: 8,
+    marginBottom: 8,
   },
 });
 

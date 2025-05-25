@@ -8,9 +8,12 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useTheme } from "../Components/ThemeContext";
 import { useAuth } from "../Components/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -135,10 +138,14 @@ const EditPasswordScreen = ({ navigation }) => {
         </Text>
         <View style={{ width: 24 }} />
       </View>
-
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={styles.formContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        enableAutomaticScroll={Platform.OS === "ios"}
+        extraHeight={150}
+        extraScrollHeight={150}
       >
         <View style={styles.formGroup}>
           <Text style={[styles.label, { color: theme.text }]}>
@@ -167,7 +174,6 @@ const EditPasswordScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
-
         <View style={styles.formGroup}>
           <Text style={[styles.label, { color: theme.text }]}>
             New Password
@@ -195,7 +201,6 @@ const EditPasswordScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
-
         <View style={styles.formGroup}>
           <Text style={[styles.label, { color: theme.text }]}>
             Confirm New Password
@@ -223,7 +228,6 @@ const EditPasswordScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
-
         <TouchableOpacity
           style={[styles.updateButton, { backgroundColor: theme.accent }]}
           onPress={handleUpdatePassword}
@@ -235,7 +239,7 @@ const EditPasswordScreen = ({ navigation }) => {
             <Text style={styles.updateButtonText}>Update Password</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 };

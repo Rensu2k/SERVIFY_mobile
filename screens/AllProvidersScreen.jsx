@@ -68,7 +68,13 @@ const AllProvidersScreen = ({ route, navigation }) => {
       onPress={() => handleProviderPress(item)}
     >
       <Image
-        source={require("../assets/images/Profile.jpg")} // Default profile image
+        source={
+          item?.profileImage
+            ? { uri: item.profileImage }
+            : item?.userInfo?.profileImage
+            ? { uri: item.userInfo.profileImage }
+            : require("../assets/images/Profile.jpg")
+        }
         style={styles.providerImage}
       />
       <View style={styles.providerInfo}>
