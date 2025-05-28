@@ -20,7 +20,6 @@ const BookingDetailsScreen = ({ route, navigation }) => {
   const { theme } = useTheme();
   const { bookings, updateBookingStatus, deleteBooking } = useBookings();
 
-  // Find the booking in any category
   const findBooking = () => {
     for (const category of Object.keys(bookings)) {
       const booking = bookings[category].find((b) => b.id === bookingId);
@@ -89,19 +88,17 @@ const BookingDetailsScreen = ({ route, navigation }) => {
 
   const openGCashApp = async () => {
     try {
-      // Updated GCash app deep link schemes (more comprehensive)
       const gcashSchemes = [
-        "gcash://home", // GCash home screen
-        "gcash://send", // GCash send money
-        "gcash://pay", // GCash pay
-        "gcash://", // Basic GCash scheme
-        "com.mynt.gcash://home", // Alternative with home
-        "com.mynt.gcash://", // Alternative basic
+        "gcash://home",
+        "gcash://send",
+        "gcash://pay",
+        "gcash://",
+        "com.mynt.gcash://home",
+        "com.mynt.gcash://",
       ];
 
       let appOpened = false;
 
-      // Try each scheme until one works
       for (const scheme of gcashSchemes) {
         try {
           console.log(`Trying to open: ${scheme}`);
@@ -120,7 +117,6 @@ const BookingDetailsScreen = ({ route, navigation }) => {
       }
 
       if (!appOpened) {
-        // Try alternative approach - just proceed with payment confirmation
         Alert.alert(
           "Open GCash Manually",
           "Please open your GCash app manually to complete the payment, then return here to confirm.",
@@ -132,7 +128,6 @@ const BookingDetailsScreen = ({ route, navigation }) => {
             {
               text: "I'll Open GCash",
               onPress: () => {
-                // Give user time to switch to GCash manually
                 setTimeout(() => {
                   Alert.alert(
                     "Payment Confirmation",
@@ -148,7 +143,7 @@ const BookingDetailsScreen = ({ route, navigation }) => {
                       },
                     ]
                   );
-                }, 3000); // Wait 3 seconds
+                }, 3000);
               },
             },
             {
@@ -214,7 +209,6 @@ const BookingDetailsScreen = ({ route, navigation }) => {
         onPress: async () => {
           const gcashOpened = await openGCashApp();
           if (gcashOpened) {
-            // Give user time to complete payment in GCash app
             setTimeout(() => {
               Alert.alert(
                 "Payment Confirmation",
@@ -230,7 +224,7 @@ const BookingDetailsScreen = ({ route, navigation }) => {
                   },
                 ]
               );
-            }, 2000); // Wait 2 seconds before asking
+            }, 2000);
           }
         },
       },
@@ -243,7 +237,6 @@ const BookingDetailsScreen = ({ route, navigation }) => {
 
   const handlePayment = async (paymentMethod) => {
     try {
-      // Update booking status to pending confirmation with payment method
       const success = await updateBookingStatus(
         bookingId,
         "Pending Confirmation",

@@ -20,9 +20,8 @@ const UserManagement = ({ navigation }) => {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState("all"); // 'all', 'client', 'provider'
+  const [filter, setFilter] = useState("all");
 
-  // Check if the current user is admin
   if (!user || user.userType !== "admin") {
     return (
       <View style={styles.container}>
@@ -33,12 +32,10 @@ const UserManagement = ({ navigation }) => {
     );
   }
 
-  // Fetch all users
   useEffect(() => {
     loadUsers();
   }, []);
 
-  // Filter users when search query or filter changes
   useEffect(() => {
     applyFilters();
   }, [users, searchQuery, filter]);
@@ -59,14 +56,12 @@ const UserManagement = ({ navigation }) => {
   const applyFilters = () => {
     let result = [...users];
 
-    // Apply type filter
     if (filter === "client") {
       result = result.filter((user) => user.userType === "client");
     } else if (filter === "provider") {
       result = result.filter((user) => user.userType === "provider");
     }
 
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter((user) =>
@@ -92,7 +87,6 @@ const UserManagement = ({ navigation }) => {
               const success = await userOperations.deleteUser(userId);
 
               if (success) {
-                // Update local state to reflect deletion
                 setUsers((prevUsers) =>
                   prevUsers.filter((u) => u.id !== userId)
                 );
@@ -129,7 +123,6 @@ const UserManagement = ({ navigation }) => {
               const success = await userOperations.toggleUserSuspension(userId);
 
               if (success) {
-                // Update local state to reflect suspension status change
                 setUsers((prevUsers) =>
                   prevUsers.map((u) =>
                     u.id === userId ? { ...u, suspended: !u.suspended } : u

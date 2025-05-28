@@ -45,7 +45,6 @@ const EditPasswordScreen = ({ navigation }) => {
       return false;
     }
 
-    // Password strength validation
     if (newPassword.length < 6) {
       Alert.alert("Error", "Password must be at least 6 characters long");
       return false;
@@ -59,31 +58,25 @@ const EditPasswordScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      // Get registered users from storage
       const storedUsers = await AsyncStorage.getItem("registeredUsers");
       let registeredUsers = storedUsers ? JSON.parse(storedUsers) : [];
 
-      // Handle default mock users separately
       const defaultUsers = {
         provider: { username: "provider", password: "provider123" },
         client: { username: "client", password: "client123" },
         admin: { username: "admin", password: "admin123" },
       };
 
-      // Check if the current password matches
       let passwordMatched = false;
 
-      // If it's a default user
       const isDefaultUser =
         defaultUsers[user.userType] &&
         defaultUsers[user.userType].username === user.username;
 
       if (isDefaultUser) {
-        // Verify current password for default user
         passwordMatched =
           currentPassword === defaultUsers[user.userType].password;
       } else {
-        // Find the user in registered users
         const registeredUser = registeredUsers.find(
           (regUser) =>
             regUser.username === user.username &&
@@ -101,13 +94,11 @@ const EditPasswordScreen = ({ navigation }) => {
         return;
       }
 
-      // Update the user with the new password
       const updatedUserData = {
         ...user,
         password: newPassword,
       };
 
-      // Use the updateUser function from AuthContext to update the user
       const result = await updateUser(updatedUserData);
 
       if (result.success) {

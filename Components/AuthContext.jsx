@@ -1,35 +1,27 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { userOperations, initDatabase } from "./DatabaseService";
 
-// Create authentication context
 const AuthContext = createContext();
 
-// Default admin credentials for demonstration purposes
-// In a real app, this would be stored securely on a backend server
 const ADMIN_CREDENTIALS = {
   username: "admin",
   password: "admin123",
   userType: "admin",
 };
 
-// Custom hook to use the auth context
 export const useAuth = () => {
   return useContext(AuthContext);
 };
 
-// Authentication provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize database and load user data on app start
   useEffect(() => {
     const initApp = async () => {
       try {
-        // Initialize database tables
         await initDatabase();
 
-        // Insert default mock users if they don't exist
         await ensureDefaultUsers();
 
         setLoading(false);
@@ -42,10 +34,8 @@ export const AuthProvider = ({ children }) => {
     initApp();
   }, []);
 
-  // Ensure default users exist in database
   const ensureDefaultUsers = async () => {
     try {
-      // Check if provider mock user exists
       const providerExists = await userOperations.checkUsernameExists(
         "provider"
       );
@@ -63,7 +53,6 @@ export const AuthProvider = ({ children }) => {
         });
       }
 
-      // Check if client mock user exists
       const clientExists = await userOperations.checkUsernameExists("client");
       if (!clientExists) {
         await userOperations.registerUser({
@@ -77,10 +66,8 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login function
   const login = async (userData, rememberMe = false) => {
     try {
-      // Validation for empty fields - extra check on context level
       if (!userData.username || !userData.password) {
         return {
           success: false,
@@ -88,18 +75,15 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // Check if trying to log in as admin
       if (userData.userType === "admin") {
         if (
           userData.username === ADMIN_CREDENTIALS.username &&
           userData.password === ADMIN_CREDENTIALS.password
         ) {
-          // Admin login successful
           const adminUser = { ...userData, isAdmin: true };
           setUser(adminUser);
           return { success: true };
         } else {
-          // Admin login failed
           return {
             success: false,
             error:
@@ -108,14 +92,12 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      // Query database for user credentials
       const userFromDb = await userOperations.loginUser(
         userData.username,
         userData.password
       );
 
       if (userFromDb && userFromDb.userType === userData.userType) {
-        // Check if user is suspended
         if (userFromDb.suspended) {
           return {
             success: false,
@@ -124,12 +106,10 @@ export const AuthProvider = ({ children }) => {
           };
         }
 
-        // Login successful
         setUser(userFromDb);
         return { success: true };
       }
 
-      // Login failed if we got here
       return {
         success: false,
         error: "Invalid username or password",
@@ -140,10 +120,8 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Signup function
   const signup = async (userData) => {
     try {
-      // Prevent admin signup
       if (userData.userType === "admin") {
         return {
           success: false,
@@ -152,7 +130,6 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // Check if username already exists
       const usernameExists = await userOperations.checkUsernameExists(
         userData.username
       );
@@ -164,7 +141,6 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // Register the new user in database
       await userOperations.registerUser(userData);
 
       return { success: true };
@@ -174,20 +150,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Update user profile
   const updateUser = async (updatedUserData) => {
     try {
-      // Store the original username in case it's being changed
       const originalUsername = user.username;
 
-      // Update the user in database
       const success = await userOperations.updateUser(
         updatedUserData,
         originalUsername
       );
 
       if (success) {
-        // Update the user in state
         setUser(updatedUserData);
         return { success: true };
       }
@@ -199,10 +171,8 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout function
   const logout = async () => {
     try {
-      // Simply clear the user from state
       setUser(null);
       return { success: true };
     } catch (error) {
@@ -211,7 +181,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Expose the context value
   const authContextValue = {
     user,
     loading,

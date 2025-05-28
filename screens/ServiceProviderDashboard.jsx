@@ -31,7 +31,6 @@ const ServiceProviderDashboard = ({ navigation }) => {
   const [notificationCount, setNotificationCount] = useState(0);
   const [lastCheckedBookings, setLastCheckedBookings] = useState([]);
 
-  // Load provider bookings when component mounts or user changes
   useEffect(() => {
     if (user && user.userType === "provider") {
       loadProviderBookings();
@@ -39,34 +38,29 @@ const ServiceProviderDashboard = ({ navigation }) => {
     }
   }, [user]);
 
-  // Check for new bookings and update notifications
   useEffect(() => {
     if (providerBookings.pending.length > 0) {
       checkForNewBookings();
     }
   }, [providerBookings]);
 
-  // Set up periodic checking for new bookings
   useEffect(() => {
     const interval = setInterval(() => {
       if (user && user.userType === "provider") {
         loadProviderBookings();
       }
-    }, 30000); // Check every 30 seconds
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [user]);
 
-  // Load bookings for the current service provider
   const loadProviderBookings = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
-      // Use the provider's username or id to get their bookings
-      const bookings = await bookingOperations.getProviderBookings(
-        user.username
-      );
+
+      const bookings = await bookingOperations.getProviderBookings(user.id);
 
       if (bookings) {
         setProviderBookings(bookings);
@@ -84,14 +78,12 @@ const ServiceProviderDashboard = ({ navigation }) => {
     }
   };
 
-  // Refresh bookings
   const onRefresh = async () => {
     setRefreshing(true);
     await loadProviderBookings();
     setRefreshing(false);
   };
 
-  // Load notification data from storage
   const loadNotificationData = async () => {
     try {
       const storedData = await AsyncStorage.getItem(`notifications_${user.id}`);
@@ -105,7 +97,6 @@ const ServiceProviderDashboard = ({ navigation }) => {
     }
   };
 
-  // Save notification data to storage
   const saveNotificationData = async (lastChecked, count) => {
     try {
       const data = {
@@ -122,7 +113,6 @@ const ServiceProviderDashboard = ({ navigation }) => {
     }
   };
 
-  // Check for new bookings
   const checkForNewBookings = () => {
     const currentBookingIds = providerBookings.pending.map(
       (booking) => booking.id
@@ -136,9 +126,7 @@ const ServiceProviderDashboard = ({ navigation }) => {
       setNotificationCount(newCount);
       saveNotificationData(currentBookingIds, newCount);
 
-      // Show notification alert for new bookings
       if (lastCheckedBookings.length > 0) {
-        // Only show if not initial load
         Alert.alert(
           "New Booking Alert! 🔔",
           `You have ${newBookings.length} new booking${
@@ -159,7 +147,6 @@ const ServiceProviderDashboard = ({ navigation }) => {
     }
   };
 
-  // Clear notifications
   const clearNotifications = () => {
     const allBookingIds = [
       ...providerBookings.pending.map((b) => b.id),
@@ -171,13 +158,11 @@ const ServiceProviderDashboard = ({ navigation }) => {
     saveNotificationData(allBookingIds, 0);
   };
 
-  // Handle notification bell press
   const handleNotificationPress = () => {
     clearNotifications();
     setActiveTab("requests");
   };
 
-  // Handle logout function
   const handleLogout = async () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       {
@@ -189,7 +174,6 @@ const ServiceProviderDashboard = ({ navigation }) => {
         onPress: async () => {
           const result = await logout();
           if (result.success) {
-            // Navigate back to the auth screen and reset navigation
             navigation.dispatch(
               CommonActions.reset({
                 index: 0,
@@ -204,13 +188,11 @@ const ServiceProviderDashboard = ({ navigation }) => {
     ]);
   };
 
-  // Calculate stats from real booking data
   const calculateStats = () => {
     const completed = providerBookings.completed.length;
     const pending = providerBookings.pending.length;
     const cancelled = providerBookings.cancelled.length;
 
-    // Calculate earnings (you can modify this based on your pricing structure)
     const earnings = providerBookings.completed.reduce((total, booking) => {
       const price = booking.details?.service?.price || 0;
       return (
@@ -228,7 +210,6 @@ const ServiceProviderDashboard = ({ navigation }) => {
 
   const stats = calculateStats();
 
-  // Get all bookings combined for rendering
   const getAllBookings = () => {
     return [
       ...providerBookings.pending,
@@ -261,7 +242,6 @@ const ServiceProviderDashboard = ({ navigation }) => {
       }
     };
 
-    // Format booking data to match the expected structure
     const formattedBooking = {
       id: item.id,
       customer:

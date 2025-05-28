@@ -1,11 +1,10 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Define theme colors
 export const lightTheme = {
   background: "#FFFFFF",
   text: "#333333",
-  accent: "#6A5ACD", // Purple accent color
+  accent: "#6A5ACD",
   card: "#F5F5F5",
   tabBar: "#FFFFFF",
   border: "#E0E0E0",
@@ -17,7 +16,7 @@ export const lightTheme = {
 export const darkTheme = {
   background: "#121212",
   text: "#FFFFFF",
-  accent: "#9F7AEA", // Lighter purple for dark mode
+  accent: "#9F7AEA",
   card: "#1E1E1E",
   tabBar: "#1E1E1E",
   border: "#333333",
@@ -26,20 +25,16 @@ export const darkTheme = {
   shadow: "#000000",
 };
 
-// Create the theme context
 const ThemeContext = createContext();
 
-// Custom hook to use the theme
 export const useTheme = () => {
   return useContext(ThemeContext);
 };
 
-// Theme provider component
 export const ThemeProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [theme, setTheme] = useState(lightTheme);
 
-  // Load theme preference from storage on app start
   useEffect(() => {
     const loadThemePreference = async () => {
       try {
@@ -57,7 +52,6 @@ export const ThemeProvider = ({ children }) => {
     loadThemePreference();
   }, []);
 
-  // Toggle theme function
   const toggleTheme = async () => {
     try {
       const newMode = !isDarkMode;
@@ -69,7 +63,6 @@ export const ThemeProvider = ({ children }) => {
     }
   };
 
-  // Values to be provided by the context
   const value = {
     isDarkMode,
     theme,

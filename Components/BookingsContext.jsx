@@ -15,12 +15,10 @@ export const BookingsProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Load bookings from database when user changes
   useEffect(() => {
     if (user) {
       loadBookings();
     } else {
-      // Clear bookings when user logs out
       setBookings({
         pending: [],
         cancelled: [],
@@ -29,26 +27,21 @@ export const BookingsProvider = ({ children }) => {
     }
   }, [user]);
 
-  // Load user-specific bookings from database
   const loadBookings = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
 
-      // Get all bookings for current user
       const userBookingsData = await bookingOperations.getAllBookings(
         user.username
       );
 
       if (userBookingsData) {
-        // Check if it's already grouped or if it's an array
         let userBookings;
         if (Array.isArray(userBookingsData)) {
-          // If it's an array, we need to group it
           userBookings = userBookingsData;
         } else {
-          // If it's already grouped, flatten it first
           userBookings = [
             ...userBookingsData.pending,
             ...userBookingsData.completed,
@@ -56,7 +49,6 @@ export const BookingsProvider = ({ children }) => {
           ];
         }
 
-        // Group bookings by status
         const groupedBookings = {
           pending: userBookings.filter(
             (booking) =>
@@ -81,7 +73,6 @@ export const BookingsProvider = ({ children }) => {
 
         setBookings(groupedBookings);
       } else {
-        // Initialize with empty categories if no bookings found
         setBookings({
           pending: [],
           cancelled: [],
@@ -95,15 +86,13 @@ export const BookingsProvider = ({ children }) => {
     }
   };
 
-  // Add a new booking
   const addBooking = async (newBooking) => {
     if (!user) return false;
 
     try {
       const formattedBooking = {
-        id: newBooking.id,
         status: newBooking.status,
-        color: newBooking.status === "Pending" ? "#FFC107" : "#F5A623", // Yellow for pending, orange for confirmed
+        color: newBooking.status === "Pending" ? "#FFC107" : "#F5A623",
         service:
           newBooking.service?.name ||
           newBooking.provider?.category ||
@@ -114,22 +103,17 @@ export const BookingsProvider = ({ children }) => {
           newBooking.provider?.profileImage ||
           newBooking.provider?.image ||
           null,
-        details: newBooking, // Store the full booking details
+        details: newBooking,
         createdAt: new Date().toISOString(),
-        userId: user.username, // Associate with current user
+        userId: user.username,
         userType: user.userType,
+        providerId: newBooking.providerId,
       };
 
-      // Add to database
       const success = await bookingOperations.addBooking(formattedBooking);
 
       if (success) {
-        // Update local state for immediate UI update
-        const updatedBookings = {
-          ...bookings,
-          pending: [formattedBooking, ...bookings.pending],
-        };
-        setBookings(updatedBookings);
+        await loadBookings();
       }
 
       return success;
@@ -139,7 +123,6 @@ export const BookingsProvider = ({ children }) => {
     }
   };
 
-  // Update booking status
   const updateBookingStatus = async (
     bookingId,
     newStatus,
@@ -152,7 +135,6 @@ export const BookingsProvider = ({ children }) => {
       let bookingFound = false;
       let bookingToUpdate = null;
 
-      // Find the booking in any category
       for (const category of Object.keys(updatedBookings)) {
         const index = updatedBookings[category].findIndex(
           (booking) => booking.id === bookingId
@@ -161,15 +143,12 @@ export const BookingsProvider = ({ children }) => {
         if (index !== -1) {
           bookingToUpdate = { ...updatedBookings[category][index] };
 
-          // Remove from current category
           updatedBookings[category] = updatedBookings[category].filter(
             (b) => b.id !== bookingId
           );
 
-          // Update status and color
           bookingToUpdate.status = newStatus;
 
-          // Store payment method if provided
           if (paymentMethod) {
             if (!bookingToUpdate.details) {
               bookingToUpdate.details = {};
@@ -177,7 +156,6 @@ export const BookingsProvider = ({ children }) => {
             bookingToUpdate.details.paymentMethod = paymentMethod;
           }
 
-          // Set color based on status
           let newColor;
           if (newStatus === "Completed") {
             newColor = "#2196F3";
@@ -215,7 +193,7 @@ export const BookingsProvider = ({ children }) => {
             } else if (newStatus === "Confirmed") {
               newColor = "#F5A623";
             } else {
-              newColor = "#FFC107"; // Default for pending
+              newColor = "#FFC107";
             }
             updatedBookings.pending = [
               bookingToUpdate,
@@ -227,7 +205,6 @@ export const BookingsProvider = ({ children }) => {
 
           bookingFound = true;
 
-          // Update in database
           await bookingOperations.updateBookingStatus(
             bookingId,
             newStatus,
@@ -249,19 +226,15 @@ export const BookingsProvider = ({ children }) => {
     }
   };
 
-  // Delete a booking
   const deleteBooking = async (bookingId) => {
     if (!user) return false;
 
     try {
-      // Delete from database
       const success = await bookingOperations.deleteBooking(bookingId);
 
       if (success) {
-        // Update local state for immediate UI update
         let updatedBookings = { ...bookings };
 
-        // Remove from any category
         for (const category of Object.keys(updatedBookings)) {
           if (
             updatedBookings[category].some(

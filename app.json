@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "SERVIFY_mobile",
+    "name": "",
     "slug": "SERVIFY_mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,18 +13,26 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.servify.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "package": "com.servify.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "servify-b5f82"
+      }
+    }
   }
 }

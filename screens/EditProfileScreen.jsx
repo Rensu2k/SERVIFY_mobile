@@ -36,9 +36,9 @@ const EditProfileScreen = ({ navigation }) => {
     fullName: user?.fullName || "",
     phone: user?.phone || "",
     address: user?.address || "",
-    // Service provider specific fields
+
     serviceDescription: user?.serviceDescription || "",
-    isAvailable: user?.isAvailable !== false, // Default to true if not set
+    isAvailable: user?.isAvailable !== false,
   });
 
   const handleInputChange = (field, value) => {
@@ -125,7 +125,6 @@ const EditProfileScreen = ({ navigation }) => {
       return false;
     }
 
-    // Username format validation
     if (formData.username.length < 3) {
       Alert.alert(
         "Validation Error",
@@ -142,7 +141,6 @@ const EditProfileScreen = ({ navigation }) => {
       return false;
     }
 
-    // Check for valid username characters (alphanumeric, underscore, hyphen)
     const usernameRegex = /^[a-zA-Z0-9_-]+$/;
     if (!usernameRegex.test(formData.username)) {
       Alert.alert(
@@ -152,7 +150,6 @@ const EditProfileScreen = ({ navigation }) => {
       return false;
     }
 
-    // Simple email validation
     if (formData.email.trim() && !formData.email.includes("@")) {
       Alert.alert("Validation Error", "Please enter a valid email address");
       return false;
@@ -166,11 +163,9 @@ const EditProfileScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      // Check if username already exists and is not the current user
       const storedUsers = await AsyncStorage.getItem("servify_users");
       let registeredUsers = storedUsers ? JSON.parse(storedUsers) : [];
 
-      // Only check for username conflicts if the username is actually being changed
       if (formData.username !== user.username) {
         const usernameAlreadyExists = registeredUsers.some(
           (registeredUser) =>
@@ -188,7 +183,6 @@ const EditProfileScreen = ({ navigation }) => {
         }
       }
 
-      // Create updated user data
       const updatedUserData = {
         ...user,
         username: formData.username,
@@ -199,13 +193,11 @@ const EditProfileScreen = ({ navigation }) => {
         profileImage: profileImage,
       };
 
-      // Add service provider specific fields if user is a service provider
       if (isServiceProvider) {
         updatedUserData.serviceDescription = formData.serviceDescription;
         updatedUserData.isAvailable = formData.isAvailable;
       }
 
-      // Use the updateUser function from AuthContext
       const result = await updateUser(updatedUserData);
 
       if (result.success) {

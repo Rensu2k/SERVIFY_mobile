@@ -25,12 +25,9 @@ const AuthScreen = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [userType, setUserType] = useState("client");
-
-  // Password visibility state
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // If user is already authenticated, navigate to Main screen
   useEffect(() => {
     if (isAuthenticated) {
       navigation.replace("Main", { userType });
@@ -38,7 +35,6 @@ const AuthScreen = ({ navigation }) => {
   }, [isAuthenticated, navigation, userType]);
 
   const handleAuth = async () => {
-    // Validate empty fields
     if (!username.trim()) {
       Alert.alert("Error", "Username cannot be empty");
       return;
@@ -50,10 +46,9 @@ const AuthScreen = ({ navigation }) => {
     }
 
     if (isLogin) {
-      // Handle login logic
       const userData = {
         username,
-        password, // Include password for authentication
+        password,
         userType,
       };
       const result = await login(userData, rememberMe);
@@ -67,7 +62,6 @@ const AuthScreen = ({ navigation }) => {
         );
       }
     } else {
-      // Handle signup logic
       if (userType === "admin") {
         Alert.alert(
           "Error",
@@ -102,7 +96,6 @@ const AuthScreen = ({ navigation }) => {
     }
   };
 
-  // User type selector for login screen - includes Admin option
   const LoginUserTypeSelector = () => (
     <View style={styles.userTypeContainer}>
       <Text style={[styles.userTypeLabel, { color: theme.text }]}>
@@ -178,7 +171,6 @@ const AuthScreen = ({ navigation }) => {
     </View>
   );
 
-  // User type selector for signup screen - excludes Admin option
   const SignupUserTypeSelector = () => (
     <View style={styles.userTypeContainer}>
       <Text style={[styles.userTypeLabel, { color: theme.text }]}>
@@ -373,7 +365,7 @@ const AuthScreen = ({ navigation }) => {
               <TouchableOpacity
                 onPress={() => {
                   setIsLogin(!isLogin);
-                  // Reset user type to client when switching between login/signup
+
                   setUserType("client");
                 }}
               >

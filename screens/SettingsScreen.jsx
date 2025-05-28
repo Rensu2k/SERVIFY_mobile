@@ -126,7 +126,7 @@ const SettingsScreen = ({ navigation }) => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* User Profile Section */}
+        
         <TouchableOpacity
           style={[styles.profileSection, { backgroundColor: theme.card }]}
           onPress={() => handleNavigation("EditProfile")}

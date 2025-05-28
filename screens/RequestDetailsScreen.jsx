@@ -29,7 +29,6 @@ const RequestDetailsScreen = ({ route, navigation }) => {
           text: "Accept",
           onPress: async () => {
             try {
-              // Update booking status to accepted
               const success = await bookingOperations.updateBookingStatus(
                 request.id,
                 "Accepted",
@@ -80,7 +79,6 @@ const RequestDetailsScreen = ({ route, navigation }) => {
           style: "destructive",
           onPress: async () => {
             try {
-              // Update booking status to declined/cancelled
               const success = await bookingOperations.updateBookingStatus(
                 request.id,
                 "Declined",
@@ -127,7 +125,6 @@ const RequestDetailsScreen = ({ route, navigation }) => {
         text: "Complete",
         onPress: async () => {
           try {
-            // Update booking status to completed
             const success = await bookingOperations.updateBookingStatus(
               request.id,
               "Completed",
@@ -173,7 +170,6 @@ const RequestDetailsScreen = ({ route, navigation }) => {
         text: "Confirm",
         onPress: async () => {
           try {
-            // Update booking status to pending payment
             const success = await bookingOperations.updateBookingStatus(
               request.id,
               "Pending Payment",
@@ -222,12 +218,11 @@ const RequestDetailsScreen = ({ route, navigation }) => {
           text: "Confirm",
           onPress: async () => {
             try {
-              // Update booking status to paid (preserve existing payment method)
               const success = await bookingOperations.updateBookingStatus(
                 request.id,
                 "Paid",
                 "#4CAF50",
-                null // Don't change payment method, just update status
+                null
               );
 
               if (success) {

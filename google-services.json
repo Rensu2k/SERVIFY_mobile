@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "548475678485",
+    "project_id": "servify-b5f82",
+    "storage_bucket": "servify-b5f82.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:548475678485:android:8ac3be3484d9295ebe831c",
+        "android_client_info": {
+          "package_name": "com.servify.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBT_vXzOxVSXftqq8TJq4ZpuURn5qMkfU4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

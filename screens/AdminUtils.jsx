@@ -7,7 +7,6 @@ const AdminUtils = ({ navigation }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // Check if the current user is admin
   if (!user || user.userType !== "admin") {
     return (
       <View style={styles.container}>
@@ -18,9 +17,8 @@ const AdminUtils = ({ navigation }) => {
     );
   }
 
-  // Handle removing all users except admin
   const handleRemoveAllUsersExceptAdmin = async () => {
-    // Confirm action
+
     Alert.alert(
       "Remove Users",
       "Are you sure you want to remove all user accounts except admin? This action cannot be undone.",
@@ -36,7 +34,7 @@ const AdminUtils = ({ navigation }) => {
             try {
               setLoading(true);
 
-              // Call the function to remove all users
+          
               await userOperations.removeAllUsersExceptAdmin();
 
               Alert.alert(

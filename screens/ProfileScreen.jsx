@@ -21,7 +21,6 @@ const UserProfile = ({ navigation, route }) => {
   const isServiceProvider = userType === "provider";
   const [profileImage, setProfileImage] = useState(user?.profileImage || null);
 
-  // Sync profileImage state with user changes
   useEffect(() => {
     setProfileImage(user?.profileImage || null);
   }, [user?.profileImage]);
@@ -37,7 +36,6 @@ const UserProfile = ({ navigation, route }) => {
         onPress: async () => {
           const result = await logout();
           if (result.success) {
-            // Navigate back to the auth screen and reset navigation
             navigation.dispatch(
               CommonActions.reset({
                 index: 0,

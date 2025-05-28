@@ -23,7 +23,6 @@ const AdminDashboard = ({ navigation }) => {
     });
   };
 
-  // Sample data for dashboard metrics
   const metrics = [
     { title: "Total Users", value: "124", icon: "people" },
     { title: "Service Providers", value: "47", icon: "briefcase" },
@@ -33,7 +32,6 @@ const AdminDashboard = ({ navigation }) => {
     { title: "Completed Services", value: "342", icon: "checkmark-circle" },
   ];
 
-  // Sample data for recent activities
   const recentActivities = [
     {
       id: "1",
@@ -61,7 +59,6 @@ const AdminDashboard = ({ navigation }) => {
     },
   ];
 
-  // Render a metric card
   const renderMetricCard = ({ title, value, icon }) => (
     <View style={styles.metricCard} key={title}>
       <View style={styles.metricIconContainer}>
@@ -72,7 +69,6 @@ const AdminDashboard = ({ navigation }) => {
     </View>
   );
 
-  // Render an activity item
   const renderActivityItem = ({ id, type, description, time }) => (
     <TouchableOpacity style={styles.activityItem} key={id}>
       <View style={styles.activityHeader}>
@@ -85,7 +81,7 @@ const AdminDashboard = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Admin Dashboard</Text>
@@ -97,7 +93,7 @@ const AdminDashboard = ({ navigation }) => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Metrics Section */}
+  
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Platform Metrics</Text>
           <View style={styles.metricsContainer}>
@@ -105,7 +101,7 @@ const AdminDashboard = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Quick Actions */}
+  
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsContainer}>
@@ -145,7 +141,7 @@ const AdminDashboard = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Recent Activity */}
+  
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
           <View style={styles.activitiesContainer}>
@@ -153,7 +149,7 @@ const AdminDashboard = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Database Management */}
+  
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Database Management</Text>
           <View style={styles.databaseContainer}>

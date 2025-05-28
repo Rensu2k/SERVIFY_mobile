@@ -15,13 +15,11 @@ const ServiceProvider = ({
 }) => {
   const navigation = useNavigation();
 
-  // Debug logging
   console.log("ServiceProvider Debug:");
   console.log("Provider:", JSON.stringify(provider, null, 2));
   console.log("Image prop:", image);
 
   const handlePress = () => {
-    // Create a provider object with all necessary data
     const providerData = {
       name,
       rating,
@@ -31,23 +29,19 @@ const ServiceProvider = ({
       ...provider,
     };
 
-    // Navigate to provider details screen
     navigation.navigate("ProviderDetails", { provider: providerData });
   };
 
   const isAvailable = provider?.userInfo?.isAvailable !== false;
 
-  // Get service names for the current category (or show first 2 services if no category specified)
   const getDisplayServices = () => {
     if (!provider?.services) return [];
 
     if (categoryId) {
-      // Show services for specific category
       return provider.services.filter(
         (service) => service.category === categoryId
       );
     } else {
-      // Show first 2 services if no category filter
       return provider.services.slice(0, 2);
     }
   };

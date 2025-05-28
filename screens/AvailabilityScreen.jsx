@@ -48,7 +48,7 @@ const AvailabilityScreen = ({ navigation }) => {
   const loadAvailability = async () => {
     try {
       setLoading(true);
-      // Load from AsyncStorage
+
       const storedAvailability = await AsyncStorage.getItem(
         AVAILABILITY_STORAGE_KEY
       );
@@ -56,15 +56,13 @@ const AvailabilityScreen = ({ navigation }) => {
         ? JSON.parse(storedAvailability)
         : {};
 
-      // Get current provider's availability
       const providerAvailability = parsedAvailability[user.id] || {};
 
-      // If no availability is set yet, initialize default values
       if (Object.keys(providerAvailability).length === 0) {
         const defaultAvailability = {};
         daysOfWeek.forEach((day) => {
           defaultAvailability[day] = {
-            enabled: day !== "Sunday", // All days except Sunday enabled by default
+            enabled: day !== "Sunday",
             timeSlots: {
               "Morning (8AM - 12PM)": true,
               "Afternoon (12PM - 5PM)": true,
@@ -88,7 +86,6 @@ const AvailabilityScreen = ({ navigation }) => {
     try {
       setSavingChanges(true);
 
-      // Save to AsyncStorage
       const storedAvailability = await AsyncStorage.getItem(
         AVAILABILITY_STORAGE_KEY
       );
@@ -102,7 +99,6 @@ const AvailabilityScreen = ({ navigation }) => {
         JSON.stringify(parsedAvailability)
       );
 
-      // Update user general availability status
       const updatedUser = {
         ...user,
         isAvailable: generalAvailability,

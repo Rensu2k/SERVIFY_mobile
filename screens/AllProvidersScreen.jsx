@@ -37,10 +37,8 @@ const AllProvidersScreen = ({ route, navigation }) => {
       let providersList = [];
 
       if (category) {
-        // Get providers for specific category
         providersList = await getProvidersByCategory(category);
       } else {
-        // Get all providers
         providersList = await getAllProviders();
       }
 
@@ -78,7 +76,7 @@ const AllProvidersScreen = ({ route, navigation }) => {
         style={styles.providerImage}
       />
       <View style={styles.providerInfo}>
-        {/* Service Names */}
+      
         {item.services.length > 0 && (
           <View style={styles.serviceNamesContainer}>
             {item.services.slice(0, 3).map((service, index) => (
@@ -103,7 +101,7 @@ const AllProvidersScreen = ({ route, navigation }) => {
           <Text style={[styles.providerName, { color: theme.text }]}>
             {item.name}
           </Text>
-          {/* Availability Badge */}
+        
           <View
             style={[
               styles.availabilityBadge,
@@ -130,7 +128,7 @@ const AllProvidersScreen = ({ route, navigation }) => {
           </View>
         </View>
 
-        {/* Show provider's services */}
+      
         <View style={styles.servicesContainer}>
           {item.services.slice(0, 2).map((service, index) => {
             const serviceCategoryInfo = getCategoryInfo(service.category);

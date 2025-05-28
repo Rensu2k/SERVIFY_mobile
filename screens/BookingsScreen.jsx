@@ -22,7 +22,6 @@ const Bookings = ({ route, navigation }) => {
   const isFocused = useIsFocused();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Refresh bookings when screen is focused
   useEffect(() => {
     if (isFocused) {
       refreshBookings();

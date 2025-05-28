@@ -24,7 +24,6 @@ const AVAILABILITY_STORAGE_KEY = "servify_provider_availability";
 const ProviderDetailsScreen = ({ route, navigation }) => {
   const { provider, selectedService } = route.params || {};
 
-  // Safety check for provider data
   if (!provider) {
     return (
       <SafeAreaView
@@ -55,7 +54,6 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Time slot mappings
   const timeSlotMappings = {
     "Morning (8AM - 12PM)": [
       "8:00 AM",
@@ -126,7 +124,6 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
         const providerSchedule = parsedAvailability[provider.id] || {};
         setProviderAvailability(providerSchedule);
       } else {
-        // No availability set - use default availability
         setProviderAvailability({});
       }
     } catch (error) {
@@ -141,14 +138,12 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
     const dates = [];
     const today = new Date();
 
-    // Generate next 14 days and filter by provider's available days
     for (let i = 0; i < 14; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
 
-      const dayName = daysOfWeek[date.getDay() === 0 ? 6 : date.getDay() - 1]; // Convert to Monday-Sunday format
+      const dayName = daysOfWeek[date.getDay() === 0 ? 6 : date.getDay() - 1];
 
-      // Check if provider is available on this day
       if (providerAvailability[dayName]?.enabled) {
         dates.push(date);
       }
@@ -168,17 +163,14 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
 
     const times = [];
 
-    // Check each time slot and add individual times if the slot is enabled
     Object.entries(timeSlotMappings).forEach(([slotName, timeList]) => {
       if (dayAvailability.timeSlots && dayAvailability.timeSlots[slotName]) {
         times.push(...timeList);
       }
     });
 
-    // Remove duplicates (like 12:00 PM which appears in both Morning and Afternoon)
     const uniqueTimes = [...new Set(times)];
 
-    // Sort times chronologically
     uniqueTimes.sort((a, b) => {
       const timeA = convertTo24Hour(a);
       const timeB = convertTo24Hour(b);
@@ -200,7 +192,6 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
     return parseInt(hours + minutes, 10);
   };
 
-  // Mock data for reviews
   const reviews = [
     {
       id: "r1",
@@ -231,7 +222,6 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
       return;
     }
 
-    // Check if provider is available for booking
     if (provider?.userInfo?.isAvailable === false) {
       Alert.alert(
         "Provider Unavailable",
@@ -250,7 +240,6 @@ const ProviderDetailsScreen = ({ route, navigation }) => {
       return;
     }
 
-    // Check if address is provided
     if (!serviceAddress || serviceAddress.trim() === "") {
       Alert.alert("Error", "Please provide a service address");
       return;
@@ -275,26 +264,24 @@ Proceed?`,
         {
           text: "Confirm",
           onPress: async () => {
-            // Create booking object with all details
             const bookingDetails = {
-              id: `booking-${Date.now()}`,
               provider: provider,
-              service: selectedBookingService, // Include the specific service being booked
+              providerId: provider.id,
+              service: selectedBookingService,
               date: selectedDate,
               time: selectedTime,
               status: "Pending",
               createdAt: new Date().toISOString(),
-              // Add client information
+
               clientId: user.username,
               clientType: user.userType,
               clientName: user.fullName || user.username,
               clientEmail: user.email,
               clientPhone: user.phone,
-              // Add service address
+
               address: serviceAddress,
             };
 
-            // Add booking using context which now uses AsyncStorage
             const success = await addBooking(bookingDetails);
 
             if (success) {
@@ -302,7 +289,7 @@ Proceed?`,
                 "Booking Submitted",
                 "Your booking request has been submitted. The service provider will review and respond to your request soon."
               );
-              // Navigate to Bookings tab within the ClientTabs
+
               navigation.navigate("ClientTabs", { screen: "Bookings" });
             } else {
               Alert.alert(

@@ -7,7 +7,6 @@ import { getCategoryInfo } from "./ServicesHelper";
 const ServiceCard = ({ service, provider, theme = {} }) => {
   const navigation = useNavigation();
 
-  // Debug logging
   console.log("ServiceCard Debug:");
   console.log("Provider:", JSON.stringify(provider, null, 2));
   console.log("Provider profileImage:", provider?.profileImage);
@@ -17,7 +16,6 @@ const ServiceCard = ({ service, provider, theme = {} }) => {
   );
 
   const handlePress = () => {
-    // Navigate to provider details screen with the specific service context
     navigation.navigate("ProviderDetails", {
       provider: provider,
       selectedService: service,
@@ -127,8 +125,8 @@ const ServiceCard = ({ service, provider, theme = {} }) => {
 
 const styles = StyleSheet.create({
   serviceCard: {
-    width: 160, // Fixed width for consistent dimensions
-    height: 240, // Fixed height for consistent dimensions
+    width: 160,
+    height: 240,
     marginRight: 16,
     borderRadius: 12,
     elevation: 3,

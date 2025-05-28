@@ -1,9 +1,9 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { serviceOperations } from "./DatabaseService";
+import { userOperations } from "./DatabaseService";
 
 const SERVICES_STORAGE_KEY = "servify_provider_services";
 const USERS_STORAGE_KEY = "servify_users";
 
-// Service categories mapping
 export const SERVICE_CATEGORIES = [
   { id: "plumbing", label: "Plumbing", icon: "wrench", color: "#3F51B5" },
   { id: "electrical", label: "Electrical", icon: "bolt", color: "#FF9800" },
@@ -41,7 +41,6 @@ export const SERVICE_CATEGORIES = [
   { id: "other", label: "Other", icon: "ellipsis-h", color: "#9E9E9E" },
 ];
 
-// Get all users
 const getAllUsers = async () => {
   try {
     const usersJson = await AsyncStorage.getItem(USERS_STORAGE_KEY);
@@ -52,45 +51,24 @@ const getAllUsers = async () => {
   }
 };
 
-// Get all services from all providers
 export const getAllServices = async () => {
   try {
-    const storedServices = await AsyncStorage.getItem(SERVICES_STORAGE_KEY);
-    if (!storedServices) return [];
-
-    const parsedServices = JSON.parse(storedServices);
-    const allServices = [];
-
-    // Combine services from all providers
-    Object.keys(parsedServices).forEach((providerId) => {
-      const providerServices = parsedServices[providerId];
-      providerServices.forEach((service) => {
-        allServices.push({
-          ...service,
-          providerId,
-        });
-      });
-    });
-
-    return allServices;
+    return await serviceOperations.getAllServices();
   } catch (error) {
     console.error("Error fetching services:", error);
     return [];
   }
 };
 
-// Get services by category
 export const getServicesByCategory = async (categoryId) => {
   try {
-    const allServices = await getAllServices();
-    return allServices.filter((service) => service.category === categoryId);
+    return await serviceOperations.getServicesByCategory(categoryId);
   } catch (error) {
     console.error("Error fetching services by category:", error);
     return [];
   }
 };
 
-// Get services grouped by category
 export const getServicesGroupedByCategory = async () => {
   try {
     const allServices = await getAllServices();
@@ -109,26 +87,24 @@ export const getServicesGroupedByCategory = async () => {
   }
 };
 
-// Get service providers who have services in a specific category with user info
 export const getProvidersByCategory = async (categoryId) => {
   try {
     const services = await getServicesByCategory(categoryId);
-    const users = await getAllUsers();
+    const users = await userOperations.getAllUsers();
     const providers = new Map();
 
     services.forEach((service) => {
       if (!providers.has(service.providerId)) {
-        // Find user info for this provider
         const userInfo = users.find((user) => user.id === service.providerId);
 
         providers.set(service.providerId, {
-          id: service.providerId,
+          id: userInfo?.id || service.providerId,
           name: userInfo?.username || "Unknown Provider",
           email: userInfo?.email || "",
           userType: userInfo?.userType || "provider",
-          profileImage: userInfo?.profileImage || null, // Include profile image
-          rating: "4.5", // Default rating - you might want to implement a rating system
-          reviews: "0", // Default reviews count
+          profileImage: userInfo?.profileImage || null,
+          rating: "4.5",
+          reviews: "0",
           services: [],
           userInfo: userInfo,
         });
@@ -143,26 +119,24 @@ export const getProvidersByCategory = async (categoryId) => {
   }
 };
 
-// Get all service providers with their services
 export const getAllProviders = async () => {
   try {
     const allServices = await getAllServices();
-    const users = await getAllUsers();
+    const users = await userOperations.getAllUsers();
     const providers = new Map();
 
     allServices.forEach((service) => {
       if (!providers.has(service.providerId)) {
-        // Find user info for this provider
         const userInfo = users.find((user) => user.id === service.providerId);
 
         providers.set(service.providerId, {
-          id: service.providerId,
+          id: userInfo?.id || service.providerId,
           name: userInfo?.username || "Unknown Provider",
           email: userInfo?.email || "",
           userType: userInfo?.userType || "provider",
-          profileImage: userInfo?.profileImage || null, // Include profile image
-          rating: "4.5", // Default rating
-          reviews: "0", // Default reviews count
+          profileImage: userInfo?.profileImage || null,
+          rating: "4.5",
+          reviews: "0",
           services: [],
           userInfo: userInfo,
         });
@@ -177,7 +151,6 @@ export const getAllProviders = async () => {
   }
 };
 
-// Get available categories (only categories that have services)
 export const getAvailableCategories = async () => {
   try {
     const allServices = await getAllServices();
@@ -198,7 +171,6 @@ export const getAvailableCategories = async () => {
   }
 };
 
-// Get category info by ID
 export const getCategoryInfo = (categoryId) => {
   return (
     SERVICE_CATEGORIES.find((cat) => cat.id === categoryId) ||
@@ -206,15 +178,13 @@ export const getCategoryInfo = (categoryId) => {
   );
 };
 
-// Get individual services with provider information for display
 export const getServicesWithProviders = async () => {
   try {
     const allServices = await getAllServices();
-    const users = await getAllUsers();
+    const users = await userOperations.getAllUsers();
     const servicesWithProviders = [];
 
     allServices.forEach((service) => {
-      // Find user info for this provider
       const userInfo = users.find((user) => user.id === service.providerId);
 
       if (userInfo) {
@@ -225,9 +195,9 @@ export const getServicesWithProviders = async () => {
             name: userInfo.username || "Unknown Provider",
             email: userInfo.email || "",
             userType: userInfo.userType || "provider",
-            profileImage: userInfo.profileImage || null, // Include profile image
-            rating: "4.5", // Default rating
-            reviews: "0", // Default reviews count
+            profileImage: userInfo.profileImage || null,
+            rating: "4.5",
+            reviews: "0",
             userInfo: userInfo,
           },
         });
@@ -241,7 +211,6 @@ export const getServicesWithProviders = async () => {
   }
 };
 
-// Get individual services by category with provider information
 export const getServicesByCategoryWithProviders = async (categoryId) => {
   try {
     const allServicesWithProviders = await getServicesWithProviders();

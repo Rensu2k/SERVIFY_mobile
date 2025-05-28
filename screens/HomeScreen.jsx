@@ -41,16 +41,13 @@ const HomeScreenContent = ({ navigation }) => {
     try {
       setLoading(true);
 
-      // Get available categories (only ones that have services)
       const categories = await getAvailableCategories();
       setAvailableCategories(categories);
 
-      // Load individual services for each category (limit to first few for home screen)
       const servicesData = {};
       for (const category of categories.slice(0, 3)) {
-        // Show only first 3 categories on home
         const services = await getServicesByCategoryWithProviders(category.id);
-        servicesData[category.id] = services.slice(0, 8); // Limit to 8 services per category for better scrolling
+        servicesData[category.id] = services.slice(0, 8);
       }
       setServicesByCategory(servicesData);
     } catch (error) {
